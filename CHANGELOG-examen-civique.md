@@ -36,6 +36,14 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
+## v8 — Séparation progression / position et reprise de session (version actuelle)
+- **Problème identifié** : la barre en haut de l'écran Fiches affichait la *position dans le paquet* (« 4/362 »), mais ressemblait exactement à une barre de progression. Elle repartait à zéro à chaque ouverture — ce qui donnait l'impression, à tort, que la progression était perdue.
+- **Correction, alignée sur les principes d'interface d'Apple** (un indicateur de progression doit refléter un état durable ; un état temporaire ne doit pas lui ressembler) :
+  - **Barre de maîtrise** (verte, persistée) : « X / Y maîtrisées dans cette sélection ». C'est la seule barre de l'écran.
+  - **Position dans le paquet** : ligne discrète en texte, sans barre (« Carte 13 sur 362 »), avec un bouton « Recommencer ».
+- **Reprise de session (restauration d'état, logique d'Apple Books)** : l'app rouvre exactement sur la carte où l'utilisateur s'était arrêté, avec le même ordre de paquet et les mêmes filtres (niveau CR/CSP et thème) restaurés automatiquement.
+- **Tests ajoutés** : simulation de trois lancements successifs de l'app avec stockage persistant partagé, vérifiant la reprise de la carte, de l'index, du compte de maîtrise, du filtre thématique, et le comportement du bouton « Recommencer ».
+
 ## v7 — Banc de solutions élargi (version actuelle)
 - Chaque question à réponses variables propose désormais **jusqu'à 10 réponses alternatives** (323 au total, contre 210 en v6), tirées de l'ensemble réel des réponses acceptables.
 - Les bancs plus courts correspondent à des **ensembles finis**, où il n'existe pas 10 réponses valables : DOM insulaires (3), pays fondateurs de l'UE (5), façades maritimes (5), territoires de l'océan Indien (5), conditions du permis (6), symboles de la République (7-9), pays frontaliers (7-9).

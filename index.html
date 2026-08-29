@@ -153,9 +153,28 @@ select.themesel{
 }
 
 /* ---------- Flashcard ---------- */
-.deck-progress{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--gris);margin-bottom:10px;font-weight:600;}
-.deck-progress .bar{flex:1;height:5px;background:var(--gris-clair);border-radius:5px;overflow:hidden;}
-.deck-progress .bar i{display:block;height:100%;background:var(--bleu-marianne);}
+/* Progression durable : barre pleine, teintée, accompagnée d'un compte explicite */
+.mastery-bar{margin-bottom:9px;}
+.mastery-bar .mrow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+.mastery-bar .mlabel{font-size:11px;font-weight:650;color:var(--gris);}
+.mastery-bar .mval{font-size:12.5px;font-weight:800;color:var(--vert-ok);}
+.mastery-bar .mtrack{height:7px;background:var(--gris-clair);border-radius:7px;overflow:hidden;}
+.mastery-bar .mtrack i{
+  display:block;height:100%;border-radius:7px;background:var(--vert-ok);
+  transition:width 650ms cubic-bezier(.22,1,.36,1);
+}
+
+/* Position dans le paquet : discrète, sans barre, pour ne pas être confondue avec la progression */
+.deck-pos{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;color:var(--gris);font-weight:600;margin-bottom:12px;
+}
+.deck-pos .dp-ic{display:inline-flex;width:13px;height:13px;opacity:.7;}
+.deck-pos .dp-ic svg{width:100%;height:100%;}
+.deck-pos .dp-restart{
+  margin-left:auto;background:none;border:none;padding:2px 0;
+  font-size:11px;font-weight:700;color:var(--bleu-marianne);
+}
 
 .card-zone{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:340px;}
 .flashcard{
@@ -471,9 +490,19 @@ nav.tabs button.active .ic svg{transform:translateY(-1px) scale(1.06);}
     </div>
 
     <div id="studyContent">
-      <div class="deck-progress">
-        <span id="studyPos">1/1</span>
-        <div class="bar"><i id="studyBar" style="width:0%"></i></div>
+      <!-- Progression durable (persistée) : ce que l'utilisateur a réellement acquis -->
+      <div class="mastery-bar">
+        <div class="mrow">
+          <span class="mlabel">Maîtrisées dans cette sélection</span>
+          <span class="mval" id="masteryVal">0 / 0</span>
+        </div>
+        <div class="mtrack"><i id="masteryFill" style="width:0%"></i></div>
+      </div>
+      <!-- Position dans le paquet : état temporaire, volontairement discret et distinct -->
+      <div class="deck-pos">
+        <span class="dp-ic" id="deckPosIc"></span>
+        <span id="studyPos">Carte 1 sur 1</span>
+        <button class="dp-restart" onclick="restartDeck()">Recommencer</button>
       </div>
 
       <div class="card-zone">
@@ -609,6 +638,7 @@ setIcon('btnIcAgain','again'); setIcon('btnIcKnow','check');
 setIcon('btnIcPrev','arrowLeft'); setIcon('btnIcShuffle','shuffle'); setIcon('btnIcNext','arrowRight');
 setIcon('btnIcDownload','download'); setIcon('btnIcClip','clipboard'); setIcon('btnIcUpload','upload');
 setIcon('altBankIc','layers');
+setIcon('deckPosIc','cards');
 
 /* Double codage : couleur + icône fixes par thématique (mémorisation renforcée) */
 const THEME_STYLE = {
@@ -773,6 +803,58 @@ function renderStudyInit(){
   if(!document.getElementById('studyThemeSel').options.length){
     populateThemeSelect(document.getElementById('studyThemeSel'));
   }
+  restoreFilterUI();
+  restoreOrBuildDeck();
+}
+
+// Restaure les filtres choisis lors de la dernière session (niveau + thème).
+function restoreFilterUI(){
+  const s = progress.session;
+  if(!s) return;
+  if(Array.isArray(s.levels)){
+    studyLevelFilter = new Set(s.levels);
+    document.getElementById('chipCR').classList.toggle('on', studyLevelFilter.has('CR'));
+    document.getElementById('chipCSP').classList.toggle('on', studyLevelFilter.has('CSP'));
+  }
+  const sel = document.getElementById('studyThemeSel');
+  if(s.theme && [...sel.options].some(o=>o.value===s.theme)) sel.value = s.theme;
+}
+
+// Signature des filtres courants, pour savoir si la session sauvegardée est encore valable.
+function filterSignature(){
+  return [...studyLevelFilter].sort().join('+') + '|' + document.getElementById('studyThemeSel').value;
+}
+
+// Reprise là où l'utilisateur s'était arrêté (logique de restauration d'état d'iOS).
+function restoreOrBuildDeck(){
+  const s = progress.session;
+  if(s && s.sig === filterSignature() && Array.isArray(s.order) && s.order.length){
+    const byId = new Map(QUESTIONS.map(q=>[q.id,q]));
+    const deck = s.order.map(id=>byId.get(id)).filter(Boolean);
+    if(deck.length === s.order.length){
+      studyDeck = deck;
+      studyIdx = Math.min(s.idx || 0, deck.length-1);
+      studyFlipped = false;
+      renderCard();
+      return;
+    }
+  }
+  applyStudyFilter();
+}
+
+function saveSession(){
+  progress.session = {
+    sig: filterSignature(),
+    levels: [...studyLevelFilter],
+    theme: document.getElementById('studyThemeSel').value,
+    order: studyDeck.map(q=>q.id),
+    idx: studyIdx
+  };
+  saveProgress();
+}
+
+function restartDeck(){
+  haptic(8);
   applyStudyFilter();
 }
 
@@ -808,8 +890,14 @@ function renderCard(){
     return;
   }
   const q = studyDeck[studyIdx];
-  document.getElementById('studyPos').textContent = (studyIdx+1)+'/'+studyDeck.length;
-  document.getElementById('studyBar').style.width = pct(studyIdx+1, studyDeck.length)+'%';
+  document.getElementById('studyPos').textContent = `Carte ${studyIdx+1} sur ${studyDeck.length}`;
+
+  // Progression durable : cartes maîtrisées dans la sélection courante
+  const mastered = studyDeck.filter(x=>progress.mastered[x.id]).length;
+  document.getElementById('masteryVal').textContent = `${mastered} / ${studyDeck.length}`;
+  document.getElementById('masteryFill').style.width = pct(mastered, studyDeck.length)+'%';
+
+  saveSession();
 
   const tagEl = document.getElementById('cardTag');
   tagEl.textContent = q.level==='both' ? 'CR + CSP' : q.level;

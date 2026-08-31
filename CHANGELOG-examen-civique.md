@@ -36,6 +36,15 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
+## v9 — Mode Examen blanc (version actuelle)
+- **Nouvel onglet « Examen »** reproduisant les conditions officielles : 40 questions QCM (4 réponses, 1 correcte), 45 minutes, seuil de réussite à 32/40 (80 %), au niveau CR ou CSP au choix.
+- **Composition conforme** : 28 questions de connaissance + 12 mises en situation, réparties sur les cinq thématiques officielles, tirées au sort à chaque tentative.
+- **46 mises en situation créées** (base portée à 408 questions). Le ministère ne publie pas les mises en situation officielles : elles ont été rédigées d'après le format décrit et les principes de la formation civique.
+- **Chronomètre à horloge absolue** : le temps est calculé depuis l'horodatage de départ, donc il continue de courir si l'utilisateur quitte l'application, verrouille son téléphone ou change d'onglet. À la reprise, le temps réellement écoulé est recalculé ; si les 45 minutes sont dépassées, l'examen est clôturé automatiquement. Alerte visuelle à 10 min puis 5 min.
+- **Déroulé fidèle** : aucune correction pendant l'épreuve, navigation libre entre les 40 questions via une grille, reprise possible d'un examen en cours après fermeture de l'app.
+- **Écran de résultats** : score et mention réussi/non atteint, durée réelle, questions sans réponse, performance par type (connaissance / situation), analyse par thématique triée de la plus faible à la plus solide avec conseil de révision, et corrigé complet des erreurs avec explication.
+- **Validation : 100 examens simulés avant livraison** — taille (40), composition (28/12 sur 100/100), aucun doublon, aucune question hors niveau, options valides (4 choix, 1 seule bonne réponse, sans doublon), 5 thématiques couvertes dans chaque sujet, 406 questions différentes mobilisées sur 408. Chronomètre vérifié (45 min au départ, 15 min restantes après 30 min hors application, clôture automatique à expiration) et seuil de réussite testé aux bornes exactes (31/40 refusé, 32/40 accepté).
+
 ## v8 — Séparation progression / position et reprise de session (version actuelle)
 - **Problème identifié** : la barre en haut de l'écran Fiches affichait la *position dans le paquet* (« 4/362 »), mais ressemblait exactement à une barre de progression. Elle repartait à zéro à chaque ouverture — ce qui donnait l'impression, à tort, que la progression était perdue.
 - **Correction, alignée sur les principes d'interface d'Apple** (un indicateur de progression doit refléter un état durable ; un état temporaire ne doit pas lui ressembler) :

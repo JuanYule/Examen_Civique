@@ -36,6 +36,27 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
+## v11 — Suivi des examens dans l'écran Progrès (version actuelle)
+- **Nouvelle section « Examens blancs »** dans l'onglet Progrès, conçue autour de la question utile pour l'utilisateur : « est-ce que je progresse vers le seuil de 32/40 ? », plutôt qu'une simple liste de chiffres.
+- **Trois indicateurs clés** : dernier score (avec l'écart chiffré par rapport à la tentative précédente, en vert si progression, en rouge si recul), meilleur score, et nombre d'examens réussis sur le total.
+- **Graphique d'évolution** : barres des 10 dernières tentatives, colorées selon le résultat (vert ≥ 32, orange 26-31, rouge < 26), avec la **ligne de seuil à 32/40 tracée en pointillés verts** — le seuil est ainsi visible en permanence comme repère, sans avoir à faire le calcul.
+- **Conseil contextuel** : indique le nombre exact de bonnes réponses manquantes pour atteindre le seuil, ou invite à entretenir son niveau si le seuil est déjà atteint.
+- **Historique détaillé** : 8 dernières tentatives, du plus récent au plus ancien, avec date, heure, niveau (CR/CSP), durée réelle, mention « temps écoulé » le cas échéant, et badge réussi/échoué.
+- **État vide soigné** : quand aucun examen n'a été passé, un bloc explicatif propose directement de lancer un examen blanc plutôt que d'afficher un graphique vide.
+- **Tests ajoutés** : état vide, calcul des indicateurs, tendance positive et négative, proportionnalité des barres, tri chronologique, plafonnement à 10 barres et 8 lignes avec mention des tentatives masquées, intégration bout-en-bout (examen réellement passé apparaissant dans Progrès), et retour à l'état vide après réinitialisation.
+
+## v10 — Mises en situation enrichies et méthode D.V.R.E (version actuelle)
+- **Base portée à 442 questions** : 362 questions de connaissance + **80 mises en situation** (contre 46 en v9).
+- **34 nouvelles mises en situation** couvrant des points de droit jusque-là absents : garde à vue et droit à l'avocat, référé prud'homal, droit au compte auprès de la Banque de France, violation de domicile par le bailleur, garantie légale de conformité, signalement PHAROS, instruction en famille et autorisation du rectorat, fraude à la carte Vitale, harcèlement moral au travail, harcèlement scolaire (3018), achat de vote, discrimination au logement et au commerce, maisons France Services.
+- **Sources** : questions rédigées en propre, à partir des points de droit identifiés dans un document fourni par l'utilisateur et sur parcours-civique.fr. Ces deux sources sont privées et non affiliées au gouvernement (le site l'indique lui-même) : leurs questions ne sont pas officielles et n'ont pas été recopiées.
+- **Application de la méthode D.V.R.E** (Dialogue, Valeurs, Recours, Éliminer les extrêmes) :
+  - 9 questions existantes reformulées : elles posaient une question de connaissance déguisée au lieu d'appeler une action. Elles demandent désormais « que faites-vous ? » et la bonne réponse est un comportement.
+  - Priorité au dialogue avant la sanction lorsqu'il n'y a ni urgence ni danger (voisinage, école, employeur).
+  - Chaque situation propose des distracteurs de type « ne rien faire », « contourner la procédure » ou « se faire justice soi-même ».
+  - La bonne réponse identifie l'institution compétente (mairie, préfecture, Défenseur des droits, inspection du travail, CPAM, France Travail, PHAROS, secours 15/17/18/112).
+- **Contrôles automatisés ajoutés** : aucune bonne réponse incivique, 3 distracteurs distincts par question, explication obligatoire, scénario présent dans l'énoncé. 0 erreur structurelle sur 80 situations.
+- **Revalidation** : 100 examens simulés (composition 28/12 respectée 100 fois sur 100, 0 doublon, 0 question hors niveau, 5 thématiques par sujet, 442 questions mobilisées), chronomètre et seuil de réussite revérifiés, non-régression sur les bancs de solutions, graphiques et reprise de session.
+
 ## v9 — Mode Examen blanc (version actuelle)
 - **Nouvel onglet « Examen »** reproduisant les conditions officielles : 40 questions QCM (4 réponses, 1 correcte), 45 minutes, seuil de réussite à 32/40 (80 %), au niveau CR ou CSP au choix.
 - **Composition conforme** : 28 questions de connaissance + 12 mises en situation, réparties sur les cinq thématiques officielles, tirées au sort à chaque tentative.

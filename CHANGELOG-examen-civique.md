@@ -36,7 +36,20 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v12 — Glissement des fiches (version actuelle)
+## v13 — Correction du tremblement au glissement (version actuelle)
+Le glissement introduit en v12 tremblait, surtout lors d'un appui maintenu sur le côté. Quatre causes distinctes ont été identifiées et corrigées.
+
+- **Cause 1 — deux propriétaires du `transform`.** Un appui sur une carte déjà retournée déclenchait l'animation CSS `tap-pulse`, qui écrit elle aussi dans `transform` et entrait en conflit avec la position suivie par le doigt : la carte sautait. Le `transform` de la carte a désormais un propriétaire unique, le geste. La règle CSS exclut explicitement la carte (`.tap-pulse:not(.flashcard)`) et les classes de transition neutralisent toute animation concurrente.
+- **Cause 2 — aucun filtrage du pointeur.** Un second doigt ou le contact d'une paume émettait des `pointermove` que l'application traitait comme le doigt principal, projetant la carte au hasard. Le pointeur est maintenant mémorisé au premier contact ; tous les autres sont ignorés, y compris leurs relâchements.
+- **Cause 3 — une écriture par évènement au lieu d'une par image.** Les évènements de pointeur arrivent plus vite que le rafraîchissement de l'écran. Les mises à jour sont désormais groupées dans `requestAnimationFrame` (une seule écriture par image, vérifiée par test : 0 écriture immédiate sur 120 évènements) et utilisent `translate3d` pour forcer la composition GPU. Techniques confirmées par les implémentations de référence consultées (issue #207 de react-multi-carousel sur le jitter au drag, et les recommandations sur `translate3d`).
+- **Cause 4 — double validation possible.** Pendant les 260 ms d'envol de la carte, un second geste pouvait valider une deuxième fois et faire sauter une carte. Un verrou bloque tout nouveau geste jusqu'au rendu de la carte suivante.
+- **Durcissement iOS** : `-webkit-touch-callout:none`, `-webkit-user-drag:none` et suppression du surlignage tactile, pour éviter menu contextuel et sélection de texte sur appui long.
+
+**Bug corrigé au passage** : le paquet restait figé à 362 cartes. Une session enregistrée avant l'ajout des mises en situation était restaurée telle quelle, si bien que les 80 nouvelles questions n'étaient jamais proposées. La session n'est désormais reprise que si elle couvre encore exactement le vivier courant ; sinon le paquet est reconstruit, la progression étant conservée.
+
+**Dix campagnes de validation** : (1) propriétaire unique du `transform` ; (2) appui long immobile avec bruit de capteur simulé — 180 évènements, la carte ne bouge pas ; (3) appui maintenu sur le côté et vérification du groupage par image ; (4) multi-touch, second doigt et second appui ; (5) linéarité du suivi, rotation et opacité ; (6) seuils de validation et annulation ; (7) vitesse, hésitation, défilement vertical, `touch-action` ; (8) reconstruction du paquet obsolète ; (9) endurance sur 40 gestes cadencés et double validation ; (10) non-régression complète — banc de solutions, boutons, QCM, 30 sujets d'examen, chronomètre, seuil, écran Progrès, export/import et reprise de session.
+
+## v12 — Glissement des fiches
 - **Validation par glissement** : sur une fiche retournée, glisser vers la droite marque « je savais », vers la gauche « à revoir ». Les deux boutons sont conservés — non par redondance, mais pour l'accessibilité (VoiceOver, motricité réduite) et la découvrabilité.
 - **Comportement physique** : la carte suit le doigt au pixel près, sans retard, et pivote légèrement (0,035° par pixel) comme un objet posé. Les mentions « Je savais » et « À revoir » apparaissent progressivement selon la distance parcourue, atteignant leur pleine opacité au seuil de validation.
 - **Double critère de validation, comme dans les applications d'Apple** : la distance (88 px) **ou** la vitesse du geste (0,45 px/ms au-delà de 24 px). Un mouvement bref mais franc valide donc aussi, sans devoir traverser tout l'écran.

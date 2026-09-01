@@ -36,7 +36,20 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v11 — Suivi des examens dans l'écran Progrès (version actuelle)
+## v12 — Glissement des fiches (version actuelle)
+- **Validation par glissement** : sur une fiche retournée, glisser vers la droite marque « je savais », vers la gauche « à revoir ». Les deux boutons sont conservés — non par redondance, mais pour l'accessibilité (VoiceOver, motricité réduite) et la découvrabilité.
+- **Comportement physique** : la carte suit le doigt au pixel près, sans retard, et pivote légèrement (0,035° par pixel) comme un objet posé. Les mentions « Je savais » et « À revoir » apparaissent progressivement selon la distance parcourue, atteignant leur pleine opacité au seuil de validation.
+- **Double critère de validation, comme dans les applications d'Apple** : la distance (88 px) **ou** la vitesse du geste (0,45 px/ms au-delà de 24 px). Un mouvement bref mais franc valide donc aussi, sans devoir traverser tout l'écran.
+- **Retour élastique** : en deçà du seuil, la carte revient en place en 380 ms avec une courbe d'amortissement, sans à-coup.
+- **Verrouillage d'axe** : au-delà de 7 px, l'application détermine si le geste est horizontal ou vertical. Un geste vertical rend immédiatement la main au défilement de la page (`touch-action: pan-y`), pour ne jamais bloquer le scroll.
+- **Le geste ne peut pas être confondu avec un appui** : un glissement n'entraîne jamais le retournement de la carte, et le clic parasite émis en fin de geste est neutralisé.
+- **Deux bugs trouvés pendant les tests et corrigés** :
+  1. *Vitesse aberrante* — elle était mesurée entre deux points consécutifs, donc parfois sur 1 ms, ce qui produisait des valeurs absurdes et pouvait valider un geste lent par accident. Elle est désormais lissée sur une fenêtre de 100 ms, avec un intervalle minimum de 12 ms.
+  2. *Geste hésitant* — un doigt parti à droite puis revenu à gauche pouvait valider dans le mauvais sens. La validation par vitesse exige maintenant que la vitesse finale aille dans le sens du déplacement.
+  3. *État résiduel* — l'état du geste n'était pas réinitialisé au changement de carte ; un geste interrompu pouvait le laisser actif.
+- **Quatre campagnes de test** : (1) logique du geste — seuils, rotation, opacité, verrouillage d'axe, calcul de vitesse ; (2) effets réels — validation gauche/droite, annulation, persistance, mise à jour de la barre de maîtrise ; (3) cas limites — geste rapide et court, lent et court, hésitant, interrompu, appui simple, clic parasite, boutons ; (4) non-régression complète — bancs de solutions, QCM, génération d'examens, chronomètre, seuil de réussite, écran Progrès, export/import et reprise de session après fermeture de l'application.
+
+## v11 — Suivi des examens dans l'écran Progrès
 - **Nouvelle section « Examens blancs »** dans l'onglet Progrès, conçue autour de la question utile pour l'utilisateur : « est-ce que je progresse vers le seuil de 32/40 ? », plutôt qu'une simple liste de chiffres.
 - **Trois indicateurs clés** : dernier score (avec l'écart chiffré par rapport à la tentative précédente, en vert si progression, en rouge si recul), meilleur score, et nombre d'examens réussis sur le total.
 - **Graphique d'évolution** : barres des 10 dernières tentatives, colorées selon le résultat (vert ≥ 32, orange 26-31, rouge < 26), avec la **ligne de seuil à 32/40 tracée en pointillés verts** — le seuil est ainsi visible en permanence comme repère, sans avoir à faire le calcul.

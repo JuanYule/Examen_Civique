@@ -36,7 +36,19 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v13 — Correction du tremblement au glissement (version actuelle)
+## v14 — Fluidité du glissement : causes de rendu (version actuelle)
+Le glissement restait saccadé sur iPhone après la v13. Les corrections précédentes portaient sur la **logique** du geste ; celles-ci portent sur le **coût de rendu**, que les tests jsdom ne peuvent pas mesurer (ils n'affichent rien à l'écran). Ce point aveugle est désormais couvert par des tests qui inspectent les propriétés CSS animées plutôt que le résultat visuel.
+
+- **Cause A — animation de `box-shadow`.** Le halo affiché au retournement animait une ombre portée de 16 px pendant 620 ms. Animer `box-shadow` oblige le navigateur à repeindre une grande zone floue à chaque image, sans accélération matérielle. Cette animation se déclenchait juste avant le glissement : le téléphone était déjà saturé quand le doigt commençait à bouger. Remplacée par une bordure sur un calque `::after` animée en `opacity`, seule propriété composée par le GPU avec `transform`.
+- **Cause B — `touch-action: pan-y`.** En autorisant le défilement vertical sur la carte, Safari pouvait décider en plein geste de reprendre la main pour faire défiler la page, émettre un `pointercancel`, et provoquer un retour instantané de la carte. Passé à `touch-action: none` : le geste appartient entièrement à la carte, sans arbitrage du navigateur. Le défilement de la page reste possible en dehors de la carte.
+- **Cause C — recalcul de mise en page pendant l'interaction.** Les boutons et l'aide au geste passaient de `display:none` à `display:flex` au retournement, ce qui modifie la hauteur du document et force un recalcul complet au moment précis où l'utilisateur s'apprête à glisser. Ils réservent désormais leur place en permanence et apparaissent par `visibility`/`opacity`.
+- **Cause D — interruption traitée comme une annulation.** Un `pointercancel` ramenait toujours la carte en arrière, même lorsque le geste avait dépassé le seuil. Il est maintenant traité comme une fin de geste normale : la décision suit les mêmes règles que le relâchement.
+
+**Dix tests** : (1) inventaire des propriétés animées — aucune propriété coûteuse ne subsiste, les neuf animations de l'application n'utilisent plus que `transform` et `opacity` ; (2) `touch-action`, protections iOS sur appui long, interruption au-delà du seuil ; (3) absence de modification de `display` pendant l'interaction ; (4) coût du rendu — 0 écriture de `transform` sur 120 évènements avant l'image suivante, aucune lecture de géométrie dans le chemin du geste ; (5) appui long immobile puis maintenu sur le côté, avec bruit de capteur simulé ; (6) multi-touch et pointeurs parasites ; (7) seuils, annulation et vitesse ; (8) endurance sur 30 gestes cadencés, sans fuite d'état ni de mémoire ; (9) accessibilité — boutons, mouvements réduits, navigation manuelle ; (10) non-régression complète.
+
+**Note de méthode** : ces tests valident la structure et la logique. Ils ne peuvent pas mesurer la fluidité réelle sur un iPhone, qui dépend du moteur de rendu de Safari. Le retour d'usage reste nécessaire.
+
+## v13 — Correction du tremblement au glissement
 Le glissement introduit en v12 tremblait, surtout lors d'un appui maintenu sur le côté. Quatre causes distinctes ont été identifiées et corrigées.
 
 - **Cause 1 — deux propriétaires du `transform`.** Un appui sur une carte déjà retournée déclenchait l'animation CSS `tap-pulse`, qui écrit elle aussi dans `transform` et entrait en conflit avec la position suivie par le doigt : la carte sautait. Le `transform` de la carte a désormais un propriétaire unique, le geste. La règle CSS exclut explicitement la carte (`.tap-pulse:not(.flashcard)`) et les classes de transition neutralisent toute animation concurrente.

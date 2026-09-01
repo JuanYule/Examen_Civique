@@ -182,7 +182,32 @@ select.themesel{
   box-shadow:0 1px 3px rgba(0,0,0,.06),0 10px 30px rgba(20,20,60,.06);
   border:1px solid var(--gris-clair);
   min-height:300px;display:flex;flex-direction:column;
+  position:relative;
+  touch-action:pan-y;              /* le défilement vertical reste au système, l'horizontal nous revient */
+  will-change:transform;
+  user-select:none;-webkit-user-select:none;
 }
+.flashcard.snapping{transition:transform 380ms cubic-bezier(.22,1,.36,1);}
+.flashcard.flying{transition:transform 300ms cubic-bezier(.4,0,.6,1), opacity 300ms ease;}
+
+/* Intention révélée progressivement pendant le glissement */
+.swipe-hint{
+  position:absolute;top:16px;
+  display:flex;align-items:center;gap:5px;
+  font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+  padding:6px 12px;border-radius:9px;
+  opacity:0;pointer-events:none;
+}
+.swipe-hint svg{width:13px;height:13px;}
+.swipe-hint.know{right:16px;background:#e3f3ea;color:var(--vert-ok);}
+.swipe-hint.again{left:16px;background:#fbe9e7;color:var(--rouge-non);}
+
+.swipe-tip{
+  text-align:center;font-size:11px;color:var(--gris);font-weight:600;
+  margin-top:11px;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.swipe-tip .st-ic{display:inline-flex;width:12px;height:12px;opacity:.55;}
+.swipe-tip .st-ic svg{width:100%;height:100%;}
 .flashcard .tag{
   align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.5px;
   color:var(--bleu-marianne);background:#eceafc;padding:4px 9px;border-radius:8px;margin-bottom:14px;
@@ -658,6 +683,8 @@ nav.tabs button.active .ic svg{transform:translateY(-1px) scale(1.06);}
 
       <div class="card-zone">
         <div class="flashcard" id="flashcard" onclick="flipCard()">
+          <span class="swipe-hint again" id="hintAgain"></span>
+          <span class="swipe-hint know" id="hintKnow"></span>
           <div class="tag-row"><span class="tag" id="cardTag">CR</span><span id="cardMultiBadge"></span></div>
           <div class="qtext" id="cardQuestion">Chargement…</div>
           <div class="theme-label" id="cardTheme"></div>
@@ -677,6 +704,9 @@ nav.tabs button.active .ic svg{transform:translateY(-1px) scale(1.06);}
       <div class="deck-controls" id="deckControls" style="display:none;">
         <button class="btn-again" onclick="markCard(false)"><span class="btn-ic" id="btnIcAgain"></span>À revoir</button>
         <button class="btn-know" onclick="markCard(true)"><span class="btn-ic" id="btnIcKnow"></span>Je savais</button>
+      </div>
+      <div class="swipe-tip" id="swipeTip" style="display:none;">
+        <span class="st-ic" id="tipIcLeft"></span>Glisse à gauche pour revoir, à droite si tu savais<span class="st-ic" id="tipIcRight"></span>
       </div>
       <div class="nav-arrows">
         <button onclick="prevCard()"><span class="btn-ic" id="btnIcPrev"></span>Précédente</button>
@@ -799,6 +829,9 @@ function setIcon(elId, key){ const el=document.getElementById(elId); if(el) el.i
 setIcon('icHome','home'); setIcon('icStudy','cards'); setIcon('icQuiz','quiz'); setIcon('icProgress','chart');
 setIcon('btnIcStudy','cards'); setIcon('btnIcQuiz','quiz');
 setIcon('btnIcAgain','again'); setIcon('btnIcKnow','check');
+setIcon('tipIcLeft','arrowLeft'); setIcon('tipIcRight','arrowRight');
+document.getElementById('hintKnow').innerHTML  = ICONS.check + 'Je savais';
+document.getElementById('hintAgain').innerHTML = ICONS.again + 'À revoir';
 setIcon('btnIcPrev','arrowLeft'); setIcon('btnIcShuffle','shuffle'); setIcon('btnIcNext','arrowRight');
 setIcon('btnIcDownload','download'); setIcon('btnIcClip','clipboard'); setIcon('btnIcUpload','upload');
 setIcon('altBankIc','layers');
@@ -1461,6 +1494,9 @@ function renderCard(){
 
   document.getElementById('tapHint').style.display = 'block';
   document.getElementById('deckControls').style.display = 'none';
+  document.getElementById('swipeTip').style.display = 'none';
+  resetCardTransform(false);
+  initSwipe();
   studyFlipped = false;
 }
 
@@ -1487,6 +1523,7 @@ function flipCard(){
   pulseEl(box, 'reveal');
   document.getElementById('tapHint').style.display = 'none';
   document.getElementById('deckControls').style.display = 'flex';
+  document.getElementById('swipeTip').style.display = 'flex';
 }
 
 function markCard(known){
@@ -1495,6 +1532,150 @@ function markCard(known){
   saveProgress();
   nextCard();
 }
+
+/* =================== GLISSEMENT DES FICHES ===================
+   La carte suit le doigt au pixel près, pivote légèrement et révèle
+   l'intention. Validation au seuil de distance OU à la vitesse du geste,
+   pour qu'un mouvement bref et rapide compte aussi. Retour élastique sinon.
+   ============================================================ */
+const SWIPE_COMMIT_PX = 88;      // distance de validation
+const SWIPE_COMMIT_VELOCITY = 0.45; // px/ms : geste rapide, même court
+const SWIPE_AXIS_LOCK_PX = 7;    // au-delà, l'axe du geste est décidé
+
+const swipe = {
+  active:false, decided:false, horizontal:false,
+  startX:0, startY:0, dx:0, moved:false,
+  samples:[]   // {x,t} récents, pour une vitesse lissée
+};
+
+// Vitesse mesurée sur une fenêtre de 100 ms plutôt que sur deux points consécutifs :
+// un intervalle d'une milliseconde donnerait une valeur aberrante.
+const SWIPE_VELOCITY_WINDOW_MS = 100;
+const SWIPE_VELOCITY_MIN_DT = 12;
+
+function swipeVelocity(){
+  const s = swipe.samples;
+  if(s.length < 2) return 0;
+  const last = s[s.length-1];
+  let first = s[0];
+  for(let i=s.length-1; i>=0; i--){
+    if(last.t - s[i].t <= SWIPE_VELOCITY_WINDOW_MS) first = s[i]; else break;
+  }
+  const dt = last.t - first.t;
+  if(dt < SWIPE_VELOCITY_MIN_DT) return 0;
+  return (last.x - first.x) / dt;
+}
+
+function cardEl(){ return document.getElementById('flashcard'); }
+
+function applyCardTransform(dx){
+  const el = cardEl();
+  if(!el) return;
+  const rot = dx * 0.035;                       // rotation discrète, effet d'objet physique
+  el.style.transform = `translateX(${dx}px) rotate(${rot}deg)`;
+  const ratio = Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX);
+  document.getElementById('hintKnow').style.opacity  = dx > 0 ? ratio : 0;
+  document.getElementById('hintAgain').style.opacity = dx < 0 ? ratio : 0;
+}
+
+function resetCardTransform(animated){
+  const el = cardEl();
+  if(!el) return;
+  swipe.active = false; swipe.decided = false; swipe.horizontal = false; swipe.moved = false;
+  swipe.dx = 0; swipe.samples = [];
+  el.classList.remove('flying');
+  if(animated) el.classList.add('snapping'); else el.classList.remove('snapping');
+  el.style.transform = '';
+  el.style.opacity = '';
+  document.getElementById('hintKnow').style.opacity = 0;
+  document.getElementById('hintAgain').style.opacity = 0;
+  if(animated) setTimeout(()=>{ const e = cardEl(); if(e) e.classList.remove('snapping'); }, 400);
+}
+
+function commitSwipe(known){
+  const el = cardEl();
+  if(!el) return;
+  const dir = known ? 1 : -1;
+  el.classList.remove('snapping');
+  el.classList.add('flying');
+  el.style.transform = `translateX(${dir * (window.innerWidth || 420)}px) rotate(${dir*14}deg)`;
+  el.style.opacity = '0';
+  haptic(known ? 12 : [8,30,8]);
+  setTimeout(()=>{
+    markCard(known);          // renderCard() réinitialise ensuite la carte
+    resetCardTransform(false);
+  }, 260);
+}
+
+function onSwipeStart(e){
+  if(!studyFlipped || studyDeck.length === 0) return;  // on ne juge qu'une carte retournée
+  swipe.active = true; swipe.decided = false; swipe.horizontal = false; swipe.moved = false;
+  swipe.startX = e.clientX;
+  swipe.startY = e.clientY;
+  swipe.dx = 0;
+  swipe.samples = [{x:e.clientX, t:Date.now()}];
+  const el = cardEl();
+  if(el) el.classList.remove('snapping','flying');
+}
+
+function onSwipeMove(e){
+  if(!swipe.active) return;
+  const dx = e.clientX - swipe.startX;
+  const dy = e.clientY - swipe.startY;
+
+  if(!swipe.decided){
+    if(Math.abs(dx) < SWIPE_AXIS_LOCK_PX && Math.abs(dy) < SWIPE_AXIS_LOCK_PX) return;
+    swipe.decided = true;
+    swipe.horizontal = Math.abs(dx) > Math.abs(dy);
+    if(!swipe.horizontal){ swipe.active = false; return; }  // geste vertical : on rend la main au défilement
+    const el = cardEl();
+    if(el && el.setPointerCapture && e.pointerId !== undefined){
+      try{ el.setPointerCapture(e.pointerId); }catch(err){}
+    }
+  }
+  if(!swipe.horizontal) return;
+
+  const now = Date.now();
+  swipe.samples.push({x:e.clientX, t:now});
+  while(swipe.samples.length > 2 && now - swipe.samples[0].t > SWIPE_VELOCITY_WINDOW_MS){
+    swipe.samples.shift();
+  }
+
+  swipe.dx = dx;
+  swipe.moved = true;
+  applyCardTransform(dx);
+  if(e.cancelable) e.preventDefault();
+}
+
+function onSwipeEnd(){
+  if(!swipe.active){ return; }
+  swipe.active = false;
+  if(!swipe.horizontal || !swipe.moved){ return; }
+
+  const v = swipeVelocity();
+  const far  = Math.abs(swipe.dx) >= SWIPE_COMMIT_PX;
+  const fast = Math.abs(v) >= SWIPE_COMMIT_VELOCITY
+               && Math.abs(swipe.dx) > 24
+               && Math.sign(v) === Math.sign(swipe.dx);   // le geste doit finir dans le sens du déplacement
+
+  if(far || fast) commitSwipe(swipe.dx > 0);
+  else resetCardTransform(true);
+}
+
+function initSwipe(){
+  const el = cardEl();
+  if(!el || el.dataset.swipeReady) return;
+  el.dataset.swipeReady = '1';
+  el.addEventListener('pointerdown', onSwipeStart);
+  el.addEventListener('pointermove', onSwipeMove, {passive:false});
+  el.addEventListener('pointerup', onSwipeEnd);
+  el.addEventListener('pointercancel', ()=>{ swipe.active=false; resetCardTransform(true); });
+  // un glissement ne doit jamais être interprété comme un appui
+  el.addEventListener('click', (e)=>{
+    if(swipe.moved){ e.stopImmediatePropagation(); e.preventDefault(); swipe.moved = false; }
+  }, true);
+}
+
 
 function nextCard(){
   if(studyIdx < studyDeck.length-1){ studyIdx++; }

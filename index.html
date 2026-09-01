@@ -186,8 +186,12 @@ select.themesel{
   touch-action:pan-y;              /* le défilement vertical reste au système, l'horizontal nous revient */
   will-change:transform;
   user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;      /* pas de menu contextuel sur appui long */
+  -webkit-user-drag:none;
+  -webkit-tap-highlight-color:transparent;
 }
 .flashcard.snapping{transition:transform 380ms cubic-bezier(.22,1,.36,1);}
+.flashcard.snapping,.flashcard.flying{animation:none !important;}  /* le transform a un seul propriétaire */
 .flashcard.flying{transition:transform 300ms cubic-bezier(.4,0,.6,1), opacity 300ms ease;}
 
 /* Intention révélée progressivement pendant le glissement */
@@ -557,7 +561,7 @@ nav.tabs button.active .ic svg{transform:translateY(-1px) scale(1.06);}
     45%{transform:scale(0.965);}
     100%{transform:scale(1);}
   }
-  .tap-pulse{animation:tapPulse 260ms cubic-bezier(.34,1.56,.64,1);}
+  .tap-pulse:not(.flashcard){animation:tapPulse 260ms cubic-bezier(.34,1.56,.64,1);}
 
   @keyframes revealIn{
     from{opacity:0;transform:translateY(8px);}
@@ -1396,7 +1400,11 @@ function restoreOrBuildDeck(){
   if(s && s.sig === filterSignature() && Array.isArray(s.order) && s.order.length){
     const byId = new Map(QUESTIONS.map(q=>[q.id,q]));
     const deck = s.order.map(id=>byId.get(id)).filter(Boolean);
-    if(deck.length === s.order.length){
+    // La session n'est reprise que si elle couvre encore exactement le vivier actuel.
+    // Sans ce contrôle, un paquet enregistré avant l'ajout de questions resterait
+    // figé et les nouvelles questions ne seraient jamais proposées.
+    const poolSize = currentPool().length;
+    if(deck.length === s.order.length && deck.length === poolSize){
       studyDeck = deck;
       studyIdx = Math.min(s.idx || 0, deck.length-1);
       studyFlipped = false;
@@ -1405,6 +1413,14 @@ function restoreOrBuildDeck(){
     }
   }
   applyStudyFilter();
+}
+
+// Vivier correspondant aux filtres courants
+function currentPool(){
+  const theme = document.getElementById('studyThemeSel').value;
+  let pool = QUESTIONS.filter(q => levelMatches(q.level, studyLevelFilter));
+  if(theme !== 'all') pool = pool.filter(q=>q.theme===theme);
+  return pool;
 }
 
 function saveSession(){
@@ -1433,9 +1449,7 @@ function toggleLevelFilter(lvl){
 
 function applyStudyFilter(){
   studyTheme = document.getElementById('studyThemeSel').value;
-  let pool = QUESTIONS.filter(q => levelMatches(q.level, studyLevelFilter));
-  if(studyTheme!=='all') pool = pool.filter(q=>q.theme===studyTheme);
-  studyDeck = shuffle(pool);
+  studyDeck = shuffle(currentPool());
   studyIdx = 0;
   studyFlipped = false;
   renderCard();
@@ -1505,8 +1519,10 @@ function flipCard(){
   const card = document.getElementById('flashcard');
 
   if(studyFlipped){
-    // Carte déjà retournée : simple retour tactile, pas de nouvelle révélation.
-    pulseEl(card, 'tap-pulse');
+    // Carte déjà retournée : aucun effet sur le transform, qui appartient
+    // exclusivement au geste de glissement (sinon les deux se combattent
+    // et la carte tremble). Le retour tactile passe par la vibration.
+    haptic(5);
     return;
   }
   studyFlipped = true;
@@ -1545,7 +1561,10 @@ const SWIPE_AXIS_LOCK_PX = 7;    // au-delà, l'axe du geste est décidé
 const swipe = {
   active:false, decided:false, horizontal:false,
   startX:0, startY:0, dx:0, moved:false,
-  samples:[]   // {x,t} récents, pour une vitesse lissée
+  pointerId:null,   // un seul doigt pilote la carte : les autres sont ignorés
+  committing:false, // vrai pendant l'envol : aucun nouveau geste n'est accepté
+  frame:0,          // image programmée via requestAnimationFrame
+  samples:[]        // {x,t} récents, pour une vitesse lissée
 };
 
 // Vitesse mesurée sur une fenêtre de 100 ms plutôt que sur deux points consécutifs :
@@ -1572,17 +1591,32 @@ function applyCardTransform(dx){
   const el = cardEl();
   if(!el) return;
   const rot = dx * 0.035;                       // rotation discrète, effet d'objet physique
-  el.style.transform = `translateX(${dx}px) rotate(${rot}deg)`;
+  // translate3d force la composition GPU ; une seule écriture par image via requestAnimationFrame
+  el.style.transform = `translate3d(${dx}px,0,0) rotate(${rot}deg)`;
   const ratio = Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX);
   document.getElementById('hintKnow').style.opacity  = dx > 0 ? ratio : 0;
   document.getElementById('hintAgain').style.opacity = dx < 0 ? ratio : 0;
 }
 
+// Les évènements de pointeur arrivent plus vite que les images à l'écran.
+// On ne peint qu'une fois par image : c'est ce qui supprime le tremblement.
+function scheduleCardFrame(){
+  if(swipe.frame) return;
+  swipe.frame = requestAnimationFrame(()=>{
+    swipe.frame = 0;
+    if(swipe.active && swipe.horizontal) applyCardTransform(swipe.dx);
+  });
+}
+function cancelCardFrame(){
+  if(swipe.frame){ cancelAnimationFrame(swipe.frame); swipe.frame = 0; }
+}
+
 function resetCardTransform(animated){
   const el = cardEl();
   if(!el) return;
+  cancelCardFrame();
   swipe.active = false; swipe.decided = false; swipe.horizontal = false; swipe.moved = false;
-  swipe.dx = 0; swipe.samples = [];
+  swipe.dx = 0; swipe.samples = []; swipe.pointerId = null;
   el.classList.remove('flying');
   if(animated) el.classList.add('snapping'); else el.classList.remove('snapping');
   el.style.transform = '';
@@ -1594,14 +1628,16 @@ function resetCardTransform(animated){
 
 function commitSwipe(known){
   const el = cardEl();
-  if(!el) return;
+  if(!el || swipe.committing) return;
+  swipe.committing = true;   // verrou : la carte part, on n'accepte plus rien jusqu'au rendu suivant
   const dir = known ? 1 : -1;
   el.classList.remove('snapping');
   el.classList.add('flying');
-  el.style.transform = `translateX(${dir * (window.innerWidth || 420)}px) rotate(${dir*14}deg)`;
+  el.style.transform = `translate3d(${dir * (window.innerWidth || 420)}px,0,0) rotate(${dir*14}deg)`;
   el.style.opacity = '0';
   haptic(known ? 12 : [8,30,8]);
   setTimeout(()=>{
+    swipe.committing = false;
     markCard(known);          // renderCard() réinitialise ensuite la carte
     resetCardTransform(false);
   }, 260);
@@ -1609,6 +1645,10 @@ function commitSwipe(known){
 
 function onSwipeStart(e){
   if(!studyFlipped || studyDeck.length === 0) return;  // on ne juge qu'une carte retournée
+  if(swipe.committing) return;                         // la carte précédente est encore en train de partir
+  if(swipe.active) return;                             // un second doigt ne prend pas la main
+  if(e.isPrimary === false) return;                    // pointeur secondaire ignoré
+  swipe.pointerId = (e.pointerId !== undefined) ? e.pointerId : null;
   swipe.active = true; swipe.decided = false; swipe.horizontal = false; swipe.moved = false;
   swipe.startX = e.clientX;
   swipe.startY = e.clientY;
@@ -1620,6 +1660,7 @@ function onSwipeStart(e){
 
 function onSwipeMove(e){
   if(!swipe.active) return;
+  if(swipe.pointerId !== null && e.pointerId !== undefined && e.pointerId !== swipe.pointerId) return;
   const dx = e.clientX - swipe.startX;
   const dy = e.clientY - swipe.startY;
 
@@ -1643,12 +1684,14 @@ function onSwipeMove(e){
 
   swipe.dx = dx;
   swipe.moved = true;
-  applyCardTransform(dx);
+  scheduleCardFrame();
   if(e.cancelable) e.preventDefault();
 }
 
-function onSwipeEnd(){
+function onSwipeEnd(e){
   if(!swipe.active){ return; }
+  if(e && swipe.pointerId !== null && e.pointerId !== undefined && e.pointerId !== swipe.pointerId) return;
+  cancelCardFrame();
   swipe.active = false;
   if(!swipe.horizontal || !swipe.moved){ return; }
 

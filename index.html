@@ -183,7 +183,7 @@ select.themesel{
   border:1px solid var(--gris-clair);
   min-height:300px;display:flex;flex-direction:column;
   position:relative;
-  touch-action:none;               /* le geste appartient entièrement à la carte : plus de conflit avec le défilement */
+  touch-action:pan-y;              /* le défilement vertical reste possible depuis la carte ; l'horizontal nous revient */
   will-change:transform;
   user-select:none;-webkit-user-select:none;
   -webkit-touch-callout:none;      /* pas de menu contextuel sur appui long */
@@ -1568,6 +1568,10 @@ function markCard(known){
 const SWIPE_COMMIT_PX = 88;      // distance de validation
 const SWIPE_COMMIT_VELOCITY = 0.45; // px/ms : geste rapide, même court
 const SWIPE_AXIS_LOCK_PX = 7;    // au-delà, l'axe du geste est décidé
+// Le geste n'est pris pour horizontal que s'il l'est nettement. En dessous de ce
+// rapport, on considère que l'utilisateur veut faire défiler et on rend la main
+// au navigateur : un geste ambigu ne doit jamais bloquer le défilement.
+const SWIPE_HORIZONTAL_RATIO = 1.4;
 
 const swipe = {
   active:false, decided:false, horizontal:false,
@@ -1678,7 +1682,7 @@ function onSwipeMove(e){
   if(!swipe.decided){
     if(Math.abs(dx) < SWIPE_AXIS_LOCK_PX && Math.abs(dy) < SWIPE_AXIS_LOCK_PX) return;
     swipe.decided = true;
-    swipe.horizontal = Math.abs(dx) > Math.abs(dy);
+    swipe.horizontal = Math.abs(dx) > Math.abs(dy) * SWIPE_HORIZONTAL_RATIO;
     if(!swipe.horizontal){ swipe.active = false; return; }  // geste vertical : on rend la main au défilement
     const el = cardEl();
     if(el && el.setPointerCapture && e.pointerId !== undefined){

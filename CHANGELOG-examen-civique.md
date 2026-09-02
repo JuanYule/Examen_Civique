@@ -36,7 +36,16 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v14 — Fluidité du glissement : causes de rendu (version actuelle)
+## v15 — Défilement rendu depuis la carte (version actuelle)
+Depuis la v14, `touch-action: none` empêchait de faire défiler la page en posant le doigt sur la carte — gênant en usage à une main. Ce réglage avait été adopté parce que Safari, autorisé à faire défiler, pouvait interrompre le geste et faire sauter la carte. Cette interruption étant désormais traitée correctement (v14, cause D), le défilement peut être rendu sans réintroduire le tremblement.
+
+- **`touch-action: pan-y`** rétabli sur la carte : le défilement vertical redevient possible depuis n'importe quel point de l'écran.
+- **Verrouillage d'axe exigeant** : le geste n'est pris pour horizontal que si le déplacement latéral dépasse le déplacement vertical d'un facteur 1,4 (`SWIPE_HORIZONTAL_RATIO`). Un geste ambigu est rendu au défilement plutôt que capté par la carte. Ce choix privilégie le défilement, plus fréquent, sur le glissement.
+- **Axe verrouillé une seule fois** par geste : pas d'oscillation entre défilement et glissement en cours de mouvement.
+
+**Dix tests de validation** : (1) réglages en place ; (2) gestes verticaux depuis la carte — la carte reste immobile et le défilement n'est jamais bloqué ; (3) le glissement horizontal reste intact et valide ; (4) frontière entre les deux modes, testée de part et d'autre du seuil de 1,4 et dans les deux directions ; (5) défilement au pouce en arc, typique de l'usage à une main ; (6) changement de direction en cours de geste ; (7) interruption par le défilement, sous et au-delà du seuil ; (8) les correctifs de fluidité de la v14 sont toujours en place (aucune animation coûteuse, groupage par image, place réservée) ; (9) alternance de 24 gestes, 12 défilements et 12 glissements, sans fuite d'état ; (10) non-régression complète.
+
+## v14 — Fluidité du glissement : causes de rendu
 Le glissement restait saccadé sur iPhone après la v13. Les corrections précédentes portaient sur la **logique** du geste ; celles-ci portent sur le **coût de rendu**, que les tests jsdom ne peuvent pas mesurer (ils n'affichent rien à l'écran). Ce point aveugle est désormais couvert par des tests qui inspectent les propriétés CSS animées plutôt que le résultat visuel.
 
 - **Cause A — animation de `box-shadow`.** Le halo affiché au retournement animait une ombre portée de 16 px pendant 620 ms. Animer `box-shadow` oblige le navigateur à repeindre une grande zone floue à chaque image, sans accélération matérielle. Cette animation se déclenchait juste avant le glissement : le téléphone était déjà saturé quand le doigt commençait à bouger. Remplacée par une bordure sur un calque `::after` animée en `opacity`, seule propriété composée par le GPU avec `transform`.

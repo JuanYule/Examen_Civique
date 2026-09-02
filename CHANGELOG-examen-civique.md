@@ -36,7 +36,23 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v15 — Défilement rendu depuis la carte (version actuelle)
+## v16 — Palette de vigilance (version actuelle)
+Application du principe issu de la recherche sur la couleur et la cognition : le rouge et les tons chauds améliorent les performances sur les **tâches de précision** (mémorisation, relecture, exactitude), là où le bleu favorise les tâches créatives (Mehta & Zhu, *Science*, 2009). L'examen civique relevant de la précision, les tons chauds sont désormais employés pour signaler ce qui demande de la vigilance.
+
+- **Échelle de vigilance à quatre niveaux**, calée sur le seuil réel de l'examen :
+  - `< 40 %` rouge — priorité de révision
+  - `40-69 %` ambre — en cours d'acquisition
+  - `70-79 %` doré — presque acquis
+  - `≥ 80 %` vert — seuil de réussite de l'examen atteint
+- **Appliquée à** : pourcentages CR et CSP de l'accueil, compteur par thématique, barre de maîtrise des fiches, anneau de progression et pourcentages par thématique.
+- **Identité thématique préservée** : les barres conservent la couleur et l'icône de leur thème. Le double codage (Paivio, Von Restorff) sert l'identification, la palette de vigilance sert l'évaluation — les deux ne se recouvrent pas.
+- **Bandeau d'accueil réchauffé** : dégradé du marine républicain vers un ambre profond, plutôt qu'un bleu uniforme.
+
+**Réserve méthodologique** : les effets de la couleur sur la cognition sont réels mais modestes et sensibles au contexte ; les auteurs eux-mêmes signalent des résultats contradictoires selon le type et la difficulté de la tâche. La constance du code couleur reste plus déterminante que le choix du ton.
+
+**Validation** : échelle testée aux quatre seuils et à leurs bornes, présence des variables, application vérifiée sur l'accueil à trois niveaux de progression, anneau, barres thématiques et barre de maîtrise ; préservation de l'identité thématique contrôlée ; non-régression complète sur les dix tests de défilement.
+
+## v15 — Défilement rendu depuis la carte
 Depuis la v14, `touch-action: none` empêchait de faire défiler la page en posant le doigt sur la carte — gênant en usage à une main. Ce réglage avait été adopté parce que Safari, autorisé à faire défiler, pouvait interrompre le geste et faire sauter la carte. Cette interruption étant désormais traitée correctement (v14, cause D), le défilement peut être rendu sans réintroduire le tremblement.
 
 - **`touch-action: pan-y`** rétabli sur la carte : le défilement vertical redevient possible depuis n'importe quel point de l'écran.

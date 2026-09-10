@@ -36,7 +36,28 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v16 — Palette de vigilance (version actuelle)
+## v17 — Copie des examens, indications centrées, relief des fiches (version actuelle)
+
+### 1. Historique des examens consultable
+- Chaque tentative conserve désormais le **détail des 40 questions et des réponses données**. Auparavant seul le score était enregistré, ce qui rendait impossible de revoir sa copie.
+- Les lignes de l'historique sont cliquables (chevron indiquant l'accès) et ouvrent un écran de détail : score, date et heure, niveau, durée, analyse par type de question et par thématique, puis la liste complète des questions.
+- Deux onglets : **Erreurs** (affiché par défaut) et **Réussies**, avec pour chaque question la bonne réponse, la réponse donnée, l'explication et la thématique.
+- Les tentatives antérieures à cette version n'ont pas de détail enregistré : leurs lignes restent affichées mais ne sont pas cliquables.
+
+### 2. Indications de glissement centrées et fondues
+- Les mentions « Je savais » et « À revoir » passent des coins supérieurs au **centre de la fiche**, en corps plus grand.
+- Apparition **en courbe plutôt que linéaire** (puissance 1,7) : quasi invisibles au début du geste (3 % à 11 px), franches près du seuil. Opacité plafonnée à 0,92 pour rester translucides et laisser lire la carte.
+- Léger grandissement de 0,86 à 1 à l'approche du seuil, qui renforce la sensation d'engagement du geste.
+
+### 3. Relief des fiches
+- **Ombre en cinq couches** : contact net au ras de la carte, puis diffusions successives jusqu'à une ombre lointaine, pour décoller la fiche du fond.
+- **Liseré clair sur l'arête supérieure** et **dégradé de surface** à 168° : la lumière tombe du haut, comme sur du papier posé.
+- **Illusion de paquet** : deux cartes dessinées sous la fiche active, décalées de 9 et 17 px, d'opacité décroissante.
+- Le relief est **entièrement statique** : aucune ombre n'est animée, conformément à la règle établie en v14. Vérifié par test — le groupage des écritures par image reste intact (80 évènements, 0 écriture immédiate).
+
+**Validation : 30 points de contrôle**, dix par amélioration, plus une campagne de non-régression (défilement, glissement, QCM, génération d'examens, chronomètre, écran Progrès, export/import).
+
+## v16 — Palette de vigilance
 Application du principe issu de la recherche sur la couleur et la cognition : le rouge et les tons chauds améliorent les performances sur les **tâches de précision** (mémorisation, relecture, exactitude), là où le bleu favorise les tâches créatives (Mehta & Zhu, *Science*, 2009). L'examen civique relevant de la précision, les tons chauds sont désormais employés pour signaler ce qui demande de la vigilance.
 
 - **Échelle de vigilance à quatre niveaux**, calée sur le seuil réel de l'examen :

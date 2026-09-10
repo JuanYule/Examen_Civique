@@ -184,9 +184,17 @@ select.themesel{
 
 .card-zone{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:340px;}
 .flashcard{
-  background:var(--papier-carte);border-radius:20px;padding:26px 22px;
-  box-shadow:0 1px 3px rgba(0,0,0,.06),0 10px 30px rgba(20,20,60,.06);
-  border:1px solid var(--gris-clair);
+  /* Léger dégradé : la lumière tombe du haut, comme sur du papier posé */
+  background:linear-gradient(168deg,#ffffff 0%,#fdfcfa 62%,#f7f4ee 100%);
+  border-radius:20px;padding:26px 22px;
+  /* Ombres empilées : contact net au ras de la carte, puis diffusion large */
+  box-shadow:
+    0 1px 1px rgba(28,28,46,.07),
+    0 3px 6px rgba(28,28,46,.06),
+    0 10px 18px rgba(28,28,46,.055),
+    0 22px 40px rgba(28,28,46,.05),
+    inset 0 1px 0 rgba(255,255,255,.9);
+  border:1px solid rgba(28,28,46,.07);
   min-height:300px;display:flex;flex-direction:column;
   position:relative;
   touch-action:pan-y;              /* le défilement vertical reste possible depuis la carte ; l'horizontal nous revient */
@@ -196,21 +204,40 @@ select.themesel{
   -webkit-user-drag:none;
   -webkit-tap-highlight-color:transparent;
 }
+/* Cartes du dessous : donne l'épaisseur d'un vrai paquet de fiches */
+.card-zone{position:relative;}
+.card-zone::before,.card-zone::after{
+  content:"";position:absolute;left:50%;top:50%;
+  width:calc(100% - 26px);height:calc(100% - 46px);
+  border-radius:20px;background:var(--papier-carte);
+  border:1px solid rgba(28,28,46,.06);
+  pointer-events:none;z-index:0;
+}
+.card-zone::before{transform:translate(-50%,-50%) translateY(9px) scale(.975);
+  box-shadow:0 6px 14px rgba(28,28,46,.05);opacity:.85;}
+.card-zone::after{transform:translate(-50%,-50%) translateY(17px) scale(.95);
+  box-shadow:0 8px 16px rgba(28,28,46,.04);opacity:.6;}
+.flashcard{position:relative;z-index:2;}
+
 .flashcard.snapping{transition:transform 380ms cubic-bezier(.22,1,.36,1);}
 .flashcard.snapping,.flashcard.flying{animation:none !important;}  /* le transform a un seul propriétaire */
 .flashcard.flying{transition:transform 300ms cubic-bezier(.4,0,.6,1), opacity 300ms ease;}
 
 /* Intention révélée progressivement pendant le glissement */
 .swipe-hint{
-  position:absolute;top:16px;
-  display:flex;align-items:center;gap:5px;
-  font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
-  padding:6px 12px;border-radius:9px;
-  opacity:0;pointer-events:none;
+  position:absolute;top:50%;left:50%;
+  display:flex;align-items:center;gap:8px;
+  font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+  padding:13px 22px;border-radius:14px;
+  opacity:0;pointer-events:none;white-space:nowrap;
+  transform:translate(-50%,-50%) scale(.86);
+  will-change:opacity,transform;
 }
-.swipe-hint svg{width:13px;height:13px;}
-.swipe-hint.know{right:16px;background:#e3f3ea;color:var(--vert-ok);}
-.swipe-hint.again{left:16px;background:#fbe9e7;color:var(--rouge-non);}
+.swipe-hint svg{width:19px;height:19px;}
+.swipe-hint.know{background:rgba(227,243,234,.94);color:var(--acquis);
+  box-shadow:0 2px 14px rgba(30,122,76,.16);}
+.swipe-hint.again{background:rgba(251,233,231,.94);color:var(--alerte);
+  box-shadow:0 2px 14px rgba(179,38,30,.16);}
 
 .swipe-tip{
   text-align:center;font-size:11px;color:var(--gris);font-weight:600;
@@ -557,6 +584,31 @@ nav.tabs button.active .ic svg{transform:translateY(-1px) scale(1.06);}
 }
 .ex-row .exr-tag.pass{background:#e3f3ea;color:var(--vert-ok);}
 .ex-row .exr-tag.fail{background:#fbe9e7;color:var(--rouge-non);}
+.ex-row.clickable{cursor:pointer;}
+.ex-row .exr-chevron{display:inline-flex;width:14px;height:14px;color:var(--gris);opacity:.55;flex-shrink:0;}
+.ex-row .exr-chevron svg{width:100%;height:100%;}
+
+.detail-head{margin:6px 0 2px;}
+.detail-back{
+  display:inline-flex;align-items:center;gap:5px;
+  background:none;border:none;padding:6px 0;
+  font-size:13px;font-weight:700;color:var(--bleu-marianne);
+}
+.detail-back svg{width:14px;height:14px;}
+
+.detail-tabs{display:flex;gap:8px;margin:18px 0 12px;}
+.detail-tabs .dt{
+  flex:1;padding:10px;border-radius:11px;font-size:12.5px;font-weight:700;
+  background:var(--papier-carte);border:1.4px solid var(--gris-clair);color:var(--gris);
+}
+.detail-tabs .dt.on{background:var(--bleu-marianne);border-color:var(--bleu-marianne);color:#fff;}
+
+.review-item .rtheme{
+  display:flex;align-items:center;gap:5px;
+  font-size:10.5px;font-weight:700;color:var(--gris);margin-top:9px;
+}
+.review-item .rtheme .rt-ic{display:inline-flex;width:13px;height:13px;}
+.review-item .rtheme .rt-ic svg{width:100%;height:100%;}
 
 /* ==================================================================
    MICRO-ANIMATIONS
@@ -1188,7 +1240,9 @@ function finishExam(timeUp){
   }).length;
   progress.examHistory.push({
     at: Date.now(), level: e.level, score: score,
-    passed: score >= EXAM_PASS, durationMs: e.durationMs, timeUp: !!timeUp
+    passed: score >= EXAM_PASS, durationMs: e.durationMs, timeUp: !!timeUp,
+    // détail conservé pour pouvoir revoir la copie plus tard
+    detail: e.items.map(it => ({ id: it.id, given: e.answers[it.id] }))
   });
   saveProgress();
   haptic(score >= EXAM_PASS ? [12,60,12] : 20);
@@ -1628,9 +1682,16 @@ function applyCardTransform(dx){
   const rot = dx * 0.035;                       // rotation discrète, effet d'objet physique
   // translate3d force la composition GPU ; une seule écriture par image via requestAnimationFrame
   el.style.transform = `translate3d(${dx}px,0,0) rotate(${rot}deg)`;
+  // Apparition en courbe : discrète au début du geste, franche près du seuil.
   const ratio = Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX);
-  document.getElementById('hintKnow').style.opacity  = dx > 0 ? ratio : 0;
-  document.getElementById('hintAgain').style.opacity = dx < 0 ? ratio : 0;
+  const fondu = Math.pow(ratio, 1.7) * 0.92;
+  const echelle = 0.86 + ratio * 0.14;
+  const know = document.getElementById('hintKnow'), again = document.getElementById('hintAgain');
+  know.style.opacity  = dx > 0 ? fondu : 0;
+  again.style.opacity = dx < 0 ? fondu : 0;
+  const t = `translate(-50%,-50%) scale(${echelle.toFixed(3)})`;
+  know.style.transform = t;
+  again.style.transform = t;
 }
 
 // Les évènements de pointeur arrivent plus vite que les images à l'écran.
@@ -2040,19 +2101,124 @@ function renderExamProgress(){
         const date = d.toLocaleDateString('fr-FR', {day:'numeric', month:'short', year:'numeric'});
         const heure = d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
         const mins = Math.floor(h.durationMs/60000);
-        return `<div class="ex-row" style="border-left-color:${col(h.score)}">
+        const idx = hist.indexOf(h);
+        return `<div class="ex-row${h.detail?' clickable':''}" style="border-left-color:${col(h.score)}"
+                     ${h.detail?`onclick="openExamDetail(${idx})"`:''}>
           <span class="exr-score" style="color:${col(h.score)}">${h.score}<span style="font-size:11px;color:var(--gris);font-weight:700;">/40</span></span>
           <span class="exr-mid">
             <div class="exr-date">${date} · ${heure}</div>
             <div class="exr-meta">Niveau ${h.level} · ${mins} min${h.timeUp?' · temps écoulé':''}</div>
           </span>
           <span class="exr-tag ${h.passed?'pass':'fail'}">${h.passed?'Réussi':'Échoué'}</span>
+          ${h.detail?`<span class="exr-chevron">${ICONS.arrowRight}</span>`:''}
         </div>`;
       }).join('')}
     </div>
     ${hist.length>8?`<p class="io-note">${hist.length-8} tentative(s) plus ancienne(s) non affichée(s).</p>`:''}
   `;
 }
+/* ---------- Détail d'une tentative passée ---------- */
+function examDetailRows(h){
+  return h.detail.map(d=>{
+    const q = QUESTIONS.find(x=>x.id===d.id);
+    return q ? { q, given:d.given, correct:d.given===q.a, answered:d.given!==undefined } : null;
+  }).filter(Boolean);
+}
+
+function openExamDetail(i){
+  const hist = progress.examHistory || [];
+  const h = hist[i];
+  if(!h || !h.detail) return;
+  haptic(6);
+
+  const rows = examDetailRows(h);
+  const byTheme = {}; THEMES.forEach(t=>byTheme[t]={ok:0,total:0});
+  const byType = {connaissance:{ok:0,total:0}, situation:{ok:0,total:0}};
+  rows.forEach(r=>{
+    byTheme[r.q.theme].total++; if(r.correct) byTheme[r.q.theme].ok++;
+    byType[r.q.type].total++;   if(r.correct) byType[r.q.type].ok++;
+  });
+
+  const d = new Date(h.at);
+  const date = d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  const heure = d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const mins = Math.floor(h.durationMs/60000);
+  const faux = rows.filter(r=>!r.correct).length;
+  const justes = rows.filter(r=>r.correct).length;
+
+  const el = document.getElementById('examProgress');
+  el.innerHTML = `
+    <div class="detail-head">
+      <button class="detail-back" onclick="renderProgress()">${ICONS.arrowLeft}Retour aux examens</button>
+    </div>
+    <div class="res-head" style="padding-top:4px;">
+      <div class="res-badge ${h.passed?'pass':'fail'}">${h.passed?ICONS.award:ICONS.alert}${h.passed?'Réussi':'Non atteint'}</div>
+      <div class="res-score" style="color:${perfColor(Math.round(h.score/40*100))}">${h.score}<span style="font-size:26px;color:var(--gris);">/40</span></div>
+      <div class="res-sub">${date} · ${heure}</div>
+      <div class="res-meta"><span>Niveau ${h.level}</span><span>${mins} min</span>${h.timeUp?'<span style="color:var(--rouge-non)">Temps écoulé</span>':''}</div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Par type de question</h3>
+      <div class="bars">
+        ${['connaissance','situation'].map(k=>{
+          const dd=byType[k], p=dd.total?Math.round(dd.ok/dd.total*100):0;
+          return `<div class="bar-row"><div class="brtop">
+            <span class="bl"><span class="btxt">${k==='connaissance'?'Connaissance':'Mises en situation'}</span></span>
+            <span class="bv" style="color:${perfColor(p)}">${dd.ok}/${dd.total}</span></div>
+            <div class="bar-track"><i style="width:${p}%;background:${perfColor(p)}"></i></div></div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Par thématique</h3>
+      <div class="bars">
+        ${THEMES.map(t=>{
+          const dd=byTheme[t], p=dd.total?Math.round(dd.ok/dd.total*100):0, st=themeStyle(t);
+          return `<div class="bar-row"><div class="brtop">
+            <span class="bl"><span class="b-ic" style="color:${st.color}">${ICONS[st.icon]}</span><span class="btxt">${t}</span></span>
+            <span class="bv" style="color:${perfColor(p)}">${dd.ok}/${dd.total}</span></div>
+            <div class="bar-track"><i style="width:${p}%;background:${st.color}"></i></div></div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="detail-tabs">
+      <button class="dt on" id="dtWrong" onclick="switchExamDetail(${i},'faux')">Erreurs (${faux})</button>
+      <button class="dt" id="dtRight" onclick="switchExamDetail(${i},'justes')">Réussies (${justes})</button>
+    </div>
+    <div id="examDetailList"></div>
+  `;
+  switchExamDetail(i,'faux');
+  window.scrollTo(0,0);
+}
+
+function switchExamDetail(i, mode){
+  const h = (progress.examHistory||[])[i];
+  if(!h || !h.detail) return;
+  document.getElementById('dtWrong').classList.toggle('on', mode==='faux');
+  document.getElementById('dtRight').classList.toggle('on', mode==='justes');
+
+  const rows = examDetailRows(h).filter(r => mode==='faux' ? !r.correct : r.correct);
+  const list = document.getElementById('examDetailList');
+  if(!rows.length){
+    list.innerHTML = `<div class="empty">${mode==='faux'?'Aucune erreur sur cette tentative.':'Aucune bonne réponse sur cette tentative.'}</div>`;
+    return;
+  }
+  list.innerHTML = rows.map(r=>{
+    const st = themeStyle(r.q.theme);
+    return `<div class="review-item" style="border-left-color:${r.correct?'var(--acquis)':'var(--alerte)'}">
+      <div class="rq">${r.q.q}</div>
+      <div class="ra">✓ ${r.q.a}</div>
+      ${!r.correct ? (r.answered ? `<div class="rw">✗ ${r.given}</div>`
+                                 : `<div class="rw" style="text-decoration:none">Sans réponse</div>`) : ''}
+      ${r.q.exp?`<div class="re">${r.q.exp}</div>`:''}
+      <div class="rtheme"><span class="rt-ic" style="color:${st.color}">${ICONS[st.icon]}</span>${r.q.theme}</div>
+    </div>`;
+  }).join('');
+}
+
 function showIoMsg(text, ok){
   const el = document.getElementById('ioMsg');
   if(!el) return;

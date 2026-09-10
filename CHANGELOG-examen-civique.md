@@ -36,7 +36,27 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v17 — Copie des examens, indications centrées, relief des fiches (version actuelle)
+## v18 — Profondeur dynamique et lavis de couleur (version actuelle)
+
+### Ce qui est retiré
+Les deux fausses cartes dessinées sous la fiche (v17) sont supprimées : elles se lisaient mal, particulièrement sur fond sombre, et donnaient un rendu figé plutôt qu'un vrai relief.
+
+### Profondeur dynamique
+- L'ombre vit désormais sur **son propre calque**, distinct de la fiche. Elle n'est jamais repeinte : seuls son opacité et sa position changent.
+- **Elle réagit au geste** : à mesure que la fiche s'écarte, l'ombre s'intensifie (opacité de 0,42 à 0,76), descend (de 6 à 20 px) et se resserre. La fiche paraît se soulever quand on la saisit, et retomber quand on la relâche.
+- **Elle dérive à l'opposé du mouvement**, comme une ombre projetée réelle, symétriquement dans les deux directions.
+- Pendant le geste, le calque suit sans amortissement ; au relâchement, il revient en douceur en 320 ms.
+- L'ombre de repos sur la fiche elle-même est allégée : la profondeur vient du calque, la fiche ne garde qu'un liseré clair en haut et une ombre de contact discrète.
+
+### Lavis de couleur
+Inspiré des références fournies (widget météo iOS) : un halo coloré en haut de la fiche, se fondant vers le blanc.
+- Obtenu par **deux dégradés radiaux superposés** occupant 62 % de la hauteur, et non par un flou — même rendu diffus, sans le coût d'un filtre recalculé à chaque image.
+- **Cinq teintes distinctes**, une par thématique, dérivées de la couleur du thème : le lavis renforce le double codage déjà en place sur les icônes et les pastilles.
+- **Teintes apaisantes** : opacité maintenue sous 30 %, tons clairs et peu saturés, pour ne pas gêner la lecture ni fatiguer sur de longues sessions.
+
+**Validation : 10 tests sur la profondeur dynamique** (suppression des fausses cartes, calque optimisé, intensification, soulèvement, dérive, symétrie, retour au repos, absence d'ombre animée), **9 tests sur le lavis** (structure, absence de flou, teintes par thème, distinction, douceur), et une campagne de non-régression (défilement, glissement, groupage par image, QCM, examens, copie d'examen).
+
+## v17 — Copie des examens, indications centrées, relief des fiches
 
 ### 1. Historique des examens consultable
 - Chaque tentative conserve désormais le **détail des 40 questions et des réponses données**. Auparavant seul le score était enregistré, ce qui rendait impossible de revoir sa copie.

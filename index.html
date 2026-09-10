@@ -189,12 +189,12 @@ select.themesel{
   border-radius:20px;padding:26px 22px;
   /* Ombres empilées : contact net au ras de la carte, puis diffusion large */
   box-shadow:
-    0 1px 1px rgba(28,28,46,.07),
-    0 3px 6px rgba(28,28,46,.06),
-    0 10px 18px rgba(28,28,46,.055),
-    0 22px 40px rgba(28,28,46,.05),
-    inset 0 1px 0 rgba(255,255,255,.9);
+    0 1px 1px rgba(28,28,46,.06),
+    0 2px 4px rgba(28,28,46,.05),
+    inset 0 1px 0 rgba(255,255,255,.92),
+    inset 0 -1px 0 rgba(28,28,46,.04);
   border:1px solid rgba(28,28,46,.07);
+  overflow:hidden;
   min-height:300px;display:flex;flex-direction:column;
   position:relative;
   touch-action:pan-y;              /* le défilement vertical reste possible depuis la carte ; l'horizontal nous revient */
@@ -204,20 +204,35 @@ select.themesel{
   -webkit-user-drag:none;
   -webkit-tap-highlight-color:transparent;
 }
-/* Cartes du dessous : donne l'épaisseur d'un vrai paquet de fiches */
+/* ── Profondeur dynamique ──
+   L'ombre vit sur son propre calque : elle n'est jamais repeinte, seuls son
+   opacité et son déplacement changent pendant le geste. La fiche semble ainsi
+   se soulever quand on la saisit, et retomber quand on la relâche. */
 .card-zone{position:relative;}
-.card-zone::before,.card-zone::after{
-  content:"";position:absolute;left:50%;top:50%;
-  width:calc(100% - 26px);height:calc(100% - 46px);
-  border-radius:20px;background:var(--papier-carte);
-  border:1px solid rgba(28,28,46,.06);
+.card-shadow{
+  position:absolute;left:50%;top:50%;
+  width:calc(100% - 16px);height:calc(100% - 34px);
+  border-radius:22px;
+  transform:translate(-50%,-50%) translateY(6px) scale(.97);
+  box-shadow:0 16px 34px rgba(28,28,46,.20), 0 6px 12px rgba(28,28,46,.12);
+  opacity:.42;pointer-events:none;z-index:0;
+  will-change:transform,opacity;
+  transition:opacity 320ms ease, transform 320ms cubic-bezier(.22,1,.36,1);
+}
+.card-shadow.lifted{transition:none;}
+.flashcard{position:relative;z-index:2;}
+
+/* Lavis de couleur en haut de la fiche, aux teintes du thème.
+   Obtenu par dégradés radiaux et non par un flou : même rendu diffus,
+   sans le coût d'un filtre recalculé à chaque image. */
+.flashcard::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:62%;
+  background:
+    radial-gradient(125% 100% at 12% -20%, var(--wash-a, rgba(26,63,160,.20)) 0%, transparent 62%),
+    radial-gradient(110% 92% at 88% -26%, var(--wash-b, rgba(26,63,160,.13)) 0%, transparent 64%);
   pointer-events:none;z-index:0;
 }
-.card-zone::before{transform:translate(-50%,-50%) translateY(9px) scale(.975);
-  box-shadow:0 6px 14px rgba(28,28,46,.05);opacity:.85;}
-.card-zone::after{transform:translate(-50%,-50%) translateY(17px) scale(.95);
-  box-shadow:0 8px 16px rgba(28,28,46,.04);opacity:.6;}
-.flashcard{position:relative;z-index:2;}
+.flashcard > *{position:relative;z-index:1;}
 
 .flashcard.snapping{transition:transform 380ms cubic-bezier(.22,1,.36,1);}
 .flashcard.snapping,.flashcard.flying{animation:none !important;}  /* le transform a un seul propriétaire */
@@ -755,6 +770,7 @@ nav.tabs button.active .ic svg{transform:translateY(-1px) scale(1.06);}
       </div>
 
       <div class="card-zone">
+        <div class="card-shadow" id="cardShadow"></div>
         <div class="flashcard" id="flashcard" onclick="flipCard()">
           <span class="swipe-hint again" id="hintAgain"></span>
           <span class="swipe-hint know" id="hintKnow"></span>
@@ -920,6 +936,22 @@ const THEME_STYLE = {
   "Vivre dans la société française":       {color:"var(--t-societe)",   bg:"var(--t-societe-bg)",   icon:"societe"},
 };
 function themeStyle(t){ return THEME_STYLE[t] || {color:"var(--gris)", bg:"var(--gris-clair)", icon:"histoire"}; }
+
+// Lavis apaisants : teintes claires et peu saturées, dérivées de la couleur du
+// thème. Assez présentes pour identifier la thématique, assez douces pour ne
+// pas gêner la lecture ni fatiguer sur de longues sessions.
+const THEME_WASH = {
+  "Principes et valeurs de la République": ["rgba(120,158,224,.30)", "rgba(168,196,240,.20)"],
+  "Système institutionnel et politique":   ["rgba(168,140,214,.28)", "rgba(200,178,232,.19)"],
+  "Droits et devoirs":                     ["rgba(118,196,160,.30)", "rgba(168,220,196,.20)"],
+  "Histoire, géographie et culture":       ["rgba(232,158,116,.30)", "rgba(244,196,164,.20)"],
+  "Vivre dans la société française":       ["rgba(224,146,186,.28)", "rgba(240,186,212,.19)"],
+};
+function applyThemeWash(el, theme){
+  const w = THEME_WASH[theme] || ["rgba(120,158,224,.28)", "rgba(168,196,240,.18)"];
+  el.style.setProperty('--wash-a', w[0]);
+  el.style.setProperty('--wash-b', w[1]);
+}
 function themeChipHTML(t){
   const s = themeStyle(t);
   return `<span class="theme-chip" style="background:${s.bg};color:${s.color};"><span class="chip-ic">${ICONS[s.icon]}</span>${t}</span>`;
@@ -1572,6 +1604,7 @@ function renderCard(){
   const s = themeStyle(q.theme);
   const flashcardEl = document.getElementById('flashcard');
   flashcardEl.style.borderLeftColor = s.color;
+  applyThemeWash(flashcardEl, q.theme);
   flashcardEl.classList.remove('answered-glow');
   document.getElementById('cardQuestion').textContent = q.q;
   document.getElementById('cardTheme').innerHTML = themeChipHTML(q.theme);
@@ -1692,6 +1725,28 @@ function applyCardTransform(dx){
   const t = `translate(-50%,-50%) scale(${echelle.toFixed(3)})`;
   know.style.transform = t;
   again.style.transform = t;
+
+  // Profondeur dynamique : plus la fiche s'écarte, plus elle paraît soulevée.
+  // Seuls l'opacité et la position du calque changent — aucune ombre recalculée.
+  const sh = document.getElementById('cardShadow');
+  if(sh){
+    const lift = Math.min(1, Math.abs(dx) / (SWIPE_COMMIT_PX * 1.6));
+    const decalage = 6 + lift * 14;          // l'ombre descend : la fiche monte
+    const derive = dx * 0.06;                // et se décale à l'opposé du mouvement
+    const echelleOmbre = 0.97 - lift * 0.045;
+    sh.style.transform = `translate(-50%,-50%) translate(${(-derive).toFixed(1)}px,${decalage.toFixed(1)}px) scale(${echelleOmbre.toFixed(3)})`;
+    sh.style.opacity = (0.42 + lift * 0.34).toFixed(3);
+  }
+}
+
+// Remet le calque d'ombre au repos (fiche posée).
+function resetCardShadow(animated){
+  const sh = document.getElementById('cardShadow');
+  if(!sh) return;
+  sh.classList.toggle('lifted', !animated);
+  sh.style.transform = '';
+  sh.style.opacity = '';
+  if(!animated) requestAnimationFrame(()=>sh.classList.remove('lifted'));
 }
 
 // Les évènements de pointeur arrivent plus vite que les images à l'écran.
@@ -1713,6 +1768,9 @@ function resetCardTransform(animated){
   cancelCardFrame();
   swipe.active = false; swipe.decided = false; swipe.horizontal = false; swipe.moved = false;
   swipe.dx = 0; swipe.samples = []; swipe.pointerId = null;
+  const sh = document.getElementById('cardShadow');
+  if(sh) sh.classList.remove('lifted');
+  resetCardShadow(animated);
   el.classList.remove('flying');
   if(animated) el.classList.add('snapping'); else el.classList.remove('snapping');
   el.style.transform = '';
@@ -1731,6 +1789,8 @@ function commitSwipe(known){
   el.classList.add('flying');
   el.style.transform = `translate3d(${dir * (window.innerWidth || 420)}px,0,0) rotate(${dir*14}deg)`;
   el.style.opacity = '0';
+  const shadow = document.getElementById('cardShadow');
+  if(shadow){ shadow.classList.remove('lifted'); shadow.style.opacity = '0'; }
   haptic(known ? 12 : [8,30,8]);
   setTimeout(()=>{
     swipe.committing = false;
@@ -1752,6 +1812,8 @@ function onSwipeStart(e){
   swipe.samples = [{x:e.clientX, t:Date.now()}];
   const el = cardEl();
   if(el) el.classList.remove('snapping','flying');
+  const sh = document.getElementById('cardShadow');
+  if(sh) sh.classList.add('lifted');   // suivi immédiat, sans amortissement
 }
 
 function onSwipeMove(e){

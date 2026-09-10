@@ -36,7 +36,25 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v18 — Profondeur dynamique et lavis de couleur (version actuelle)
+## v20 — Lisibilité du code et procédure de maintenance (version actuelle)
+Aucun changement de comportement : cette version rend le fichier reprenable par une autre personne ou un autre assistant.
+
+- **Carte du fichier en en-tête** : table des matières complète, avec le rôle de chaque section et les cinq règles à ne pas enfreindre, lisibles avant toute lecture du code.
+- **43 sections codées** et repérables par simple recherche : `[C1]` à `[C19]` pour les styles, `[H1]` à `[H7]` pour la structure, `[J1]` à `[J17]` pour la logique. Les repères HTML indiquent aussi quelle fonction rend chaque écran.
+- **Bandeaux normalisés** : chaque section porte son code, son titre et, lorsque c'est utile, la contrainte à respecter. Exemple pour le glissement : un seul propriétaire du transform, filtrage du pointeur, une écriture par image, verrou pendant l'envol.
+- **Nouveau fichier `MAINTENANCE.md`** : procédure obligatoire en six étapes pour toute modification, les cinq règles avec l'incident qui les a fait naître, la batterie de tests minimale, les réglages courants avec leur effet, la marche à suivre pour ajouter des questions, un tableau des idées déjà essayées et écartées, et un journal à compléter à chaque intervention.
+
+**Validation** : cohérence des codes annoncés et présents, puis non-régression complète (base de questions, fiches, glissement, QCM, examens, chronomètre, copie d'examen, écran Progrès, absence d'animation coûteuse).
+
+## v19 — Corrections du glissement et halo renforcé
+
+- **Indication passée au-dessus du contenu.** Les mentions « Je savais » et « À revoir » se retrouvaient au même plan que le texte de la fiche : elles apparaissaient derrière le titre et la pastille de thématique, sous forme de tache colorée. Elles sont désormais au premier plan, dans les deux directions de glissement.
+- **Plus de carte visible derrière.** Le calque d'ombre restait centré pendant que la fiche s'éloignait : il finissait par apparaître à découvert, ressemblant à une seconde carte. Il suit maintenant la fiche à 88 % de son déplacement — assez pour rester masqué derrière elle, avec un léger retard qui conserve l'effet de parallaxe. Il pivote aussi légèrement avec la fiche, et a été rétréci pour ne jamais pouvoir dépasser.
+- **Halo renforcé** : hauteur portée de 62 % à 74 % de la fiche, opacité des teintes de 0,29 à 0,46. Les couleurs restent sous 50 % pour préserver le confort de lecture.
+
+**Validation : 10 tests** — plan de l'indication par rapport au contenu et au halo, symétrie dans les deux directions, suivi horizontal de l'ombre, taux de parallaxe, dimensions du calque, hauteur et opacité du halo, plus une non-régression complète (défilement, groupage par image, QCM, examens, chronomètre, copie d'examen, écran Progrès, export).
+
+## v18 — Profondeur dynamique et lavis de couleur
 
 ### Ce qui est retiré
 Les deux fausses cartes dessinées sous la fiche (v17) sont supprimées : elles se lisaient mal, particulièrement sur fond sombre, et donnaient un rendu figé plutôt qu'un vrai relief.

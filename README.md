@@ -181,4 +181,3 @@ La génération d'examens est validée par **simulation de 100 sujets** : compos
 ## Licence
 
 Projet personnel. Le contenu des questions de connaissance provient de listes publiques du ministère de l'Intérieur.
-

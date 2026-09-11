@@ -36,7 +36,30 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v21 — Correction du biais de longueur et niveaux de difficulté (version actuelle)
+## v22 — Élargissement du contenu et correction de doublons (version actuelle)
+
+### Origine
+Un rapport de simulation d'une plateforme externe (LeTestCivique.fr) a servi à repérer les **sujets couverts par d'autres préparations et absents de cette base**. Le site est commercial et ses contenus sont protégés : aucune de ses questions n'a été reprise. Seuls les **sujets** ont été relevés — les faits ne sont pas protégeables — et les questions ont été rédigées en propre.
+
+Constat honnête : ces questions ne sont pas plus difficiles au sens du raisonnement, elles portent sur des **faits culturels et administratifs plus pointus**.
+
+### 10 sujets absents, désormais couverts
+Jurys populaires et tirage au sort · Organisation internationale de la francophonie · rectorat et inspection académique · extrait Kbis · URSSAF et cotisations · médecin conventionné et tiers payant · faisceau de licteur et emblème national · gastronomie régionale · Colonne de Juillet · Maurice Ravel et le « Boléro ».
+
+Approfondissements ajoutés : Conseil constitutionnel (composition, saisine, proclamation), Conseil d'État, Cour des comptes, massifs montagneux, châteaux et jardins à la française, cathédrales, territoires d'outre-mer, citoyenneté et nationalité, critère d'assimilation, bloc de constitutionnalité.
+
+### Chiffres
+- **65 questions ajoutées**, base portée de 442 à **505 questions** (419 de connaissance, 86 mises en situation).
+- Les nouvelles questions respectent les règles établies : réponses de 20,8 caractères en moyenne contre 18,8 pour les distracteurs, trois distracteurs distincts, explication obligatoire, difficulté attribuée.
+- Biais de longueur global maintenu à **27,1 %** (hasard : 25 %). La stratégie « toujours la plus longue » ne rapporte que 29,2 % sur 40 examens simulés.
+- Répartition par thématique : de 80 à 128 questions chacune.
+
+### Doublons corrigés
+Deux questions figuraient en double depuis la construction initiale, parce qu'elles apparaissent dans les deux listes officielles (CR et CSP) : durée du mandat des sénateurs, et infraction la plus grave. Elles sont fusionnées en un exemplaire unique de niveau « CR + CSP ».
+
+**Validation : 20 simulations et tests** — effectifs et intégrité, couverture des 15 sujets visés, équilibre des longueurs dans les nouvelles questions, répartition par thématique, biais global, stratégie de la réponse la plus longue, 20 tirages d'examen (composition, doublons, niveaux, options, couverture thématique, variété), scores simulés, écrans Fiches, QCM avec filtre de difficulté, chronomètre et copie d'examen — plus une campagne de non-régression.
+
+## v21 — Correction du biais de longueur et niveaux de difficulté
 
 ### Le défaut identifié
 Observation de l'utilisateur, vérifiée par mesure : **la bonne réponse était la plus longue dans 69 % des cas**, contre 25 % attendus au hasard. Un candidat cochant systématiquement la réponse la plus longue obtenait 69 % sans aucune connaissance. C'est un défaut de rédaction répertorié dans la littérature sur les QCM (« long correct answer », l'un des 19 défauts de Haladyna et Tarrant), qui récompense l'habileté au test plutôt que le savoir.

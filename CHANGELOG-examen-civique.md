@@ -36,7 +36,32 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v20 — Lisibilité du code et procédure de maintenance (version actuelle)
+## v21 — Correction du biais de longueur et niveaux de difficulté (version actuelle)
+
+### Le défaut identifié
+Observation de l'utilisateur, vérifiée par mesure : **la bonne réponse était la plus longue dans 69 % des cas**, contre 25 % attendus au hasard. Un candidat cochant systématiquement la réponse la plus longue obtenait 69 % sans aucune connaissance. C'est un défaut de rédaction répertorié dans la littérature sur les QCM (« long correct answer », l'un des 19 défauts de Haladyna et Tarrant), qui récompense l'habileté au test plutôt que le savoir.
+
+Origine mesurée : les bonnes réponses faisaient **46 caractères en moyenne contre 23 pour les distracteurs**.
+
+### La correction
+- **264 réponses raccourcies** à leur noyau, le détail retiré rejoignant l'explication — où il avait sa place depuis le début.
+- **56 séries de distracteurs réécrites** pour être parallèles en forme et en longueur, ce qui améliore aussi leur plausibilité.
+- **Résultat : 25,8 %**, soit exactement la valeur du hasard. Longueurs moyennes désormais de 26,0 contre 24,8 caractères.
+- Simulation sur 40 examens : la stratégie « toujours la plus longue » ne rapporte plus que **30,1 %** au lieu de 69 %.
+- Bénéfice secondaire : les fiches sont plus lisibles, la réponse tenant en une ligne.
+
+### Niveaux de difficulté
+Deux niveaux, **facile** et **moyen**, attribués selon des critères objectifs et cumulatifs : niveau CR (officiellement plus exigeant), mise en situation (raisonnement plutôt que rappel), énoncé long, réponse nuancée, procédure ou institution précise à identifier. Les connaissances élémentaires (symboles, capitale, numéros d'urgence) sont ramenées vers « facile ».
+
+Répartition obtenue : **211 faciles, 231 moyens**, avec au moins 34 questions de chaque niveau dans chacune des cinq thématiques.
+
+- Filtre disponible dans les **Fiches** et le **QCM**, par pastilles dorées distinctes des pastilles de niveau.
+- Badge de difficulté affiché sur chaque fiche.
+- **Volontairement absent de l'examen blanc** : l'épreuve officielle ne propose aucun choix de difficulté, le mode Examen reste donc fidèle à la réalité.
+
+**Validation : 10 tests** — mesure du biais, écarts significatifs, équilibre des longueurs, simulation de la stratégie « plus longue » sur 40 examens, intégrité des questions, répartition globale et par thématique, homogénéité et cohérence des filtres — plus une campagne de non-régression complète.
+
+## v20 — Lisibilité du code et procédure de maintenance
 Aucun changement de comportement : cette version rend le fichier reprenable par une autre personne ou un autre assistant.
 
 - **Carte du fichier en en-tête** : table des matières complète, avec le rôle de chaque section et les cinq règles à ne pas enfreindre, lisibles avant toute lecture du code.

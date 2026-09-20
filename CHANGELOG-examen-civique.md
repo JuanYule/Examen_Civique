@@ -36,7 +36,34 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v22 — Élargissement du contenu et correction de doublons (version actuelle)
+## v23 — Audit syntaxique, questions pièges, correction du calque (version actuelle)
+
+### 1. Audit syntaxique de toutes les questions
+Observation de l'utilisateur sur une capture : « François Mitterrand (1981) » — la parenthèse trahissait la réponse. Un audit systématique de six types d'indices a révélé **51 questions concernées, soit 10,1 %** :
+- parenthèse présente uniquement dans la bonne réponse (7)
+- chiffre présent uniquement dans la bonne réponse (21)
+- termes absolus (« jamais », « uniquement ») concentrés dans les distracteurs (21)
+- nuance (« sauf », « y compris ») exclusive à la réponse (4)
+- réponse nettement plus verbeuse ou plus détaillée (4)
+
+Correction : 26 réponses reformulées et 51 séries de distracteurs réécrites. **Résultat : 0,4 %** d'indices résiduels (2 questions). Le biais de longueur reste à 26,4 %, proche du hasard.
+
+### 2. Soixante questions pièges
+Nouveau format : trois affirmations exactes, une fausse — l'énoncé demande explicitement de trouver l'affirmation **FAUSSE**. Douze par thématique, toutes classées en difficulté moyenne car elles exigent un raisonnement et non un rappel.
+
+Elles ciblent les confusions les plus fréquentes : 1946/1958, Première/Seconde Guerre, 8 mai/11 novembre/14 juillet, 17/18 pour les secours, Guyane prise pour une île, neutralité confondue entre agents et usagers, mariage religieux cru suffisant.
+
+Précaution de rédaction : la réponse (l'affirmation fausse) mesure 29,1 caractères contre 27,3 pour les affirmations vraies, et n'est la plus longue que dans 22 % des cas — le format piège n'introduit donc pas de nouvel indice. Elles apparaissent en moyenne **3,6 fois par examen blanc**.
+
+### 3. Carte blanche visible pendant le glissement
+Le calque d'ombre suivait la fiche à 88 % de son déplacement et pivotait moins qu'elle : son bord finissait par apparaître et se lisait comme une seconde carte. Il suit désormais **exactement** la fiche — même translation, même rotation — et ne s'en écarte que verticalement, ce qui suffit à l'effet de soulèvement. Il a par ailleurs été réduit de 52 px en largeur et 64 px en hauteur, et son ombre resserrée.
+
+### Chiffres
+Base portée de 505 à **565 questions** : 479 de connaissance (dont 60 pièges) et 86 mises en situation.
+
+**Validation : 10 tests par point** (syntaxe, pièges, calque) **plus 20 tests de fonctionnement** couvrant données, intégrité, fiches, glissement, défilement, banc de solutions, filtres de difficulté, QCM, 20 tirages d'examen, stratégie de la réponse la plus longue, chronomètre, seuil, copie d'examen, écran Progrès, absence d'animation coûteuse et export.
+
+## v22 — Élargissement du contenu et correction de doublons
 
 ### Origine
 Un rapport de simulation d'une plateforme externe (LeTestCivique.fr) a servi à repérer les **sujets couverts par d'autres préparations et absents de cette base**. Le site est commercial et ses contenus sont protégés : aucune de ses questions n'a été reprise. Seuls les **sujets** ont été relevés — les faits ne sont pas protégeables — et les questions ont été rédigées en propre.

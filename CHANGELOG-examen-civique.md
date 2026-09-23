@@ -36,7 +36,40 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v23 — Audit syntaxique, questions pièges, correction du calque (version actuelle)
+## v24 — Tirage sans remise : fin de la répétition en examen (version actuelle)
+
+### Le problème mesuré
+Sur 10 examens consécutifs, **6,2 questions en commun en moyenne** entre deux examens qui se suivent, jusqu'à 10 sur 40. Certaines questions sortaient 7 fois sur 10 examens, et seulement 240 questions distinctes apparaissaient sur 400 tirages. Cause : le tirage était indépendant à chaque examen, donc rien n'empêchait une question de revenir immédiatement.
+
+### L'algorithme retenu : le sac de tirage
+Recherche menée sur les méthodes de randomisation d'examens : la référence est le **mélange de Fisher-Yates avec épuisement du paquet**, employé dans les systèmes d'examen sur ordinateur pour garantir une permutation sans répétition ni duplication.
+
+Principe appliqué ici : un sac par combinaison (niveau, type, thématique), soit 21 sacs. Chaque sac est une permutation Fisher-Yates du vivier, parcourue par un curseur. Toutes les questions sortent avant qu'aucune ne revienne. À l'épuisement, le sac est remélangé en écartant la **collision de jointure** — la dernière question d'un cycle ne peut pas ouvrir le suivant. Les sacs sont persistés, la rotation se poursuit d'une session à l'autre.
+
+Le reste de la division 28÷5 et 12÷5 tourne d'un examen à l'autre, pour qu'aucune thématique ne soit systématiquement la mieux servie.
+
+### Cause de fond traitée
+Le vivier « Histoire » ne comptait que 6 mises en situation : avec 2 à 3 tirées par examen, la répétition était arithmétiquement inévitable. **24 mises en situation ajoutées** sur les thématiques les plus pauvres (Histoire 6→17, Système 10→15, Principes 12→15). Base portée à **589 questions**.
+
+### Résultats sur 100 examens au même niveau
+| Indicateur | Avant | Après |
+|---|---|---|
+| Recouvrement entre examens consécutifs | 6,2 | **0,44** |
+| Pic de recouvrement | 10 | **3** |
+| Paires d'examens totalement disjointes | — | **69/99** |
+| Questions distinctes sur 400 tirages | 240 | **367** |
+| Apparition maximale d'une question sur 10 examens | 7× | **2×** |
+| Couverture du vivier sur 100 examens | — | **100 %**, aucune question jamais tirée |
+| Écart max-min à l'intérieur d'un sac | — | **1 au maximum** (répartition parfaite) |
+| Délai moyen de retour d'une question | — | **10,2 examens** |
+| Retours en moins de 3 examens | — | **3,9 %** |
+| Coefficient de variation global | — | 0,258 (χ² = 267 pour 413 ddl) |
+
+Répartition thématique exactement égale : 800 tirages par thématique sur 4000, soit 8 questions par examen et par thème. Composition 28/12 respectée 100 fois sur 100, cinq thématiques dans chaque sujet, aucun doublon interne, aucune question hors niveau, et au moins une question piège dans chaque examen.
+
+**Validation : 10 examens** puis **100 examens** avec analyse statistique, plus une campagne de non-régression incluant la persistance des sacs après fermeture de l'application.
+
+## v23 — Audit syntaxique, questions pièges, correction du calque
 
 ### 1. Audit syntaxique de toutes les questions
 Observation de l'utilisateur sur une capture : « François Mitterrand (1981) » — la parenthèse trahissait la réponse. Un audit systématique de six types d'indices a révélé **51 questions concernées, soit 10,1 %** :

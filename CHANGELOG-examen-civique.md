@@ -36,7 +36,45 @@ Application web autonome (fiches + QCM) pour préparer l'examen civique françai
   - 🗺️ Terracotta — Histoire, géographie et culture
   - 🏘️ Magenta — Vivre dans la société française
 
-## v24 — Tirage sans remise : fin de la répétition en examen (version actuelle)
+## v26 — Justifications rédigées à la main (version actuelle)
+Suite de la v25, qui plafonnait à 40,9 % de couverture avec les seules règles automatiques.
+
+- **Nouveau champ `de[]`** sur la question : une justification écrite pour chaque distracteur, dans l'ordre du tableau des propositions. Elle est consultée **avant** tout mécanisme automatique, donc un texte rédigé prime toujours sur une règle générale.
+- **384 justifications écrites**, couvrant 128 questions entièrement. Priorité donnée aux questions qui n'avaient aucune couverture : elles passent de 245 à 117.
+- Chaque texte nomme l'erreur précisément plutôt que de la constater. Trois exemples : « L'excès de vitesse est une contravention » pour une question sur le crime ; « Le vert ne figure pas sur le drapeau français » ; « Son immunité couvre le mandat, elle ne vaut pas à vie ».
+
+**Couverture mesurée sur 100 examens** : de 40,9 % à **61,7 %** des réponses fausses accompagnées d'un texte explicite — 106 par la règle des pièges, 500 par les justifications écrites, les notions et les règles de conduite. Les 38 % restants s'appuient sur la comparaison visuelle des quatre propositions.
+
+**Validation** : les 16 contrôles de la v25 rejoués sur 982 erreurs analysées, plus la non-régression complète (glissement, défilement, chronomètre, copie d'examen, écran Progrès, absence d'animation coûteuse, export).
+
+## v25 — Justification de la réponse cochée
+
+### La demande
+Le corrigé indiquait la bonne réponse mais pas **pourquoi la réponse cochée était fausse**, ce qui empêche de situer précisément son erreur.
+
+### La contrainte rencontrée
+589 questions × 3 distracteurs = **1 767 justifications** à produire. L'analyse montre 1 370 formulations distinctes : un dictionnaire de 500 entrées n'en couvrirait que 45 %. Rédiger 1 767 textes de qualité n'était pas réalisable en une passe.
+
+### La conception retenue : montrer plutôt que commenter
+Une fenêtre s'ouvre au toucher d'une question du corrigé et présente **les quatre propositions côte à côte**, la bonne marquée en vert, celle qui a été cochée marquée en rouge, suivies de l'explication de fond. La comparaison directe situe l'erreur sans exiger un commentaire sur chaque ligne.
+
+Par-dessus, quatre mécanismes produisent une justification explicite quand ils s'appliquent, du plus précis au plus général :
+1. **Question piège** : l'affirmation cochée est vraie, donc ce n'est pas celle qui était demandée. Règle systématique et exacte, vérifiée sur les 60 pièges.
+2. **Dictionnaire de 209 notions** : institutions, textes, dates, lieux, personnes, notions juridiques. « Vous avez coché le préfet : il représente l'État dans le département. »
+3. **Règles de conduite** pour les mises en situation, qui suivent une doctrine constante : s'abstenir, contourner la procédure, se faire justice soi-même, diffuser, fuir, régler en privé — chacune nommée pour ce qu'elle est.
+4. **Valeurs chiffrées** : la donnée officielle exacte est rappelée.
+
+### Couverture mesurée sur 100 examens
+Sur 1 051 réponses fausses rencontrées : **40,9 % reçoivent un texte explicite** (107 pièges, 323 notions et règles, dont les valeurs chiffrées). Les 59 % restants relèvent de propositions uniques, sans notion identifiable : pour celles-là, la comparaison visuelle des quatre options reste le support de l'explication.
+
+Ce chiffre est le plafond réaliste de cette approche sans rédaction manuelle de plusieurs centaines de textes.
+
+### Aussi ajouté
+La correction immédiate du QCM affiche la même justification lorsqu'une réponse est fausse.
+
+**Validation : 100 examens simulés** avec 1 051 erreurs analysées, plus 16 contrôles — couverture, absence de texte sur une bonne réponse ou sans réponse, traitement des 60 pièges, ouverture et fermeture de la fenêtre, marquage des options, blocage du défilement de fond, cas sans réponse, correction du QCM, et non-régression sur la génération d'examens.
+
+## v24 — Tirage sans remise : fin de la répétition en examen
 
 ### Le problème mesuré
 Sur 10 examens consécutifs, **6,2 questions en commun en moyenne** entre deux examens qui se suivent, jusqu'à 10 sur 40. Certaines questions sortaient 7 fois sur 10 examens, et seulement 240 questions distinctes apparaissaient sur 400 tirages. Cause : le tirage était indépendant à chaque examen, donc rien n'empêchait une question de revenir immédiatement.

@@ -1,138 +1,334 @@
-# Journal des mises à jour — App de préparation à l'examen civique
+# Débogage du rendu et cas de test — App Examen Civique
 
-Application web autonome (fiches + QCM) pour préparer l'examen civique français (niveaux CR et CSP), hébergée sur GitHub Pages.
+Fichier de référence pour diagnostiquer les problèmes de **fluidité** (saccades, tremblements) et valider le code avant chaque mise en ligne.
 
-**Dépôt GitHub :** `github.com/JuanYule/Examen_Civique`
-**URL en ligne :** `https://juanyule.github.io/Examen_Civique/`
-**Déploiement retenu :** GitHub Pages (validé et fonctionnel — ne pas changer de méthode d'hébergement sauf demande explicite).
+**Dépôt :** `github.com/JuanYule/Examen_Civique` · **En ligne :** `https://juanyule.github.io/Examen_Civique/`
+**État :** 589 questions, fichier d'environ 400 Ko, 44 sections codées.
 
 ---
 
-## v1 — Version initiale
-- 362 questions couvrant les 5 thématiques officielles (Principes et valeurs de la République, Système institutionnel et politique, Droits et devoirs, Histoire/géographie/culture, Vivre dans la société française).
-- Questions issues des deux listes officielles du ministère de l'Intérieur (CR = carte de résident, CSP = carte de séjour pluriannuelle), avec réponses et distracteurs rédigés à partir de connaissances générales vérifiées (les réponses officielles ne sont pas publiées par le ministère).
-- Deux modes : Fiches (flashcards à retourner) et QCM (4 choix, sessions de 10 questions).
-- Filtres par niveau (CR/CSP) et par thématique.
-- Suivi de progression par thématique.
-- Stockage : `localStorage` (fonctionne uniquement en usage local, pas dans l'aperçu Claude).
+## 1. Le point aveugle à connaître
 
-## v2 — Compatibilité stockage
-- Ajout d'un système de stockage hybride (`window.storage` si disponible dans un artifact Claude, sinon `localStorage`) pour fiabiliser la sauvegarde selon le contexte d'ouverture du fichier.
+Les tests automatisés de ce projet tournent sous **jsdom**, un DOM simulé qui **n'affiche rien à l'écran**.
 
-## v3 — Hébergement web (résolution du problème d'ouverture sur iPhone)
-- **Problème rencontré :** iOS bloque systématiquement l'ouverture de fichiers HTML locaux via "Ouvrir dans Safari" (restriction système, pas un bug de l'app).
-- **Solution retenue :** hébergement du fichier sur GitHub Pages → vraie URL `https://...`, ajoutable normalement à l'écran d'accueil depuis Safari, avec sauvegarde de progression stable et permanente.
+| Ce que jsdom détecte | Ce que jsdom ne détecte pas |
+|---|---|
+| Logique du geste, seuils, état | Saccades, tremblements |
+| Structure HTML, classes appliquées | Coût de peinture d'une image |
+| Valeurs calculées, persistance | Nombre d'images par seconde |
+| Propriétés CSS déclarées | Comportement réel de Safari iOS |
 
-## v4 — Enrichissement du contenu et nouvelles fonctionnalités (version actuelle)
-- **Réponses enrichies** : les questions à réponse ouverte/multiple (ex. "Qui était un·e écrivain·e français·e célèbre ?", "Quel peintre est français ?", "Qui était une chanteuse française célèbre ?") indiquent désormais explicitement d'autres réponses valables acceptées, avec un contexte biographique bref sur la réponse principale donnée.
-- **Export / Import de la progression** (écran "Progrès") :
-  - Export sous forme de fichier `.json` téléchargeable.
-  - Export sous forme de code texte compact (copié dans le presse-papiers), utile si le téléchargement de fichier ne fonctionne pas sur l'appareil.
-  - Import via sélection de fichier ou collage du code texte.
-- **Refonte des couleurs (théorie de l'apprentissage)** : chaque thématique a désormais une couleur ET une icône fixes et cohérentes dans toute l'app (fiches, QCM, accueil, progrès), basé sur la théorie du double codage (Paivio) et l'effet Von Restorff — associer une information à un repère visuel distinct et constant améliore la rétention mémorielle de 25 à 30 % selon plusieurs études citées.
-  - 🏛️ Bleu — Principes et valeurs de la République
-  - ⚖️ Violet — Système institutionnel et politique
-  - 📜 Vert — Droits et devoirs
-  - 🗺️ Terracotta — Histoire, géographie et culture
-  - 🏘️ Magenta — Vivre dans la société française
+**Conséquence pratique :** un test vert ne garantit pas la fluidité. Il faut tester séparément **les propriétés animées**, puis valider sur un vrai iPhone.
 
-## v14 — Fluidité du glissement : causes de rendu (version actuelle)
-Le glissement restait saccadé sur iPhone après la v13. Les corrections précédentes portaient sur la **logique** du geste ; celles-ci portent sur le **coût de rendu**, que les tests jsdom ne peuvent pas mesurer (ils n'affichent rien à l'écran). Ce point aveugle est désormais couvert par des tests qui inspectent les propriétés CSS animées plutôt que le résultat visuel.
+---
 
-- **Cause A — animation de `box-shadow`.** Le halo affiché au retournement animait une ombre portée de 16 px pendant 620 ms. Animer `box-shadow` oblige le navigateur à repeindre une grande zone floue à chaque image, sans accélération matérielle. Cette animation se déclenchait juste avant le glissement : le téléphone était déjà saturé quand le doigt commençait à bouger. Remplacée par une bordure sur un calque `::after` animée en `opacity`, seule propriété composée par le GPU avec `transform`.
-- **Cause B — `touch-action: pan-y`.** En autorisant le défilement vertical sur la carte, Safari pouvait décider en plein geste de reprendre la main pour faire défiler la page, émettre un `pointercancel`, et provoquer un retour instantané de la carte. Passé à `touch-action: none` : le geste appartient entièrement à la carte, sans arbitrage du navigateur. Le défilement de la page reste possible en dehors de la carte.
-- **Cause C — recalcul de mise en page pendant l'interaction.** Les boutons et l'aide au geste passaient de `display:none` à `display:flex` au retournement, ce qui modifie la hauteur du document et force un recalcul complet au moment précis où l'utilisateur s'apprête à glisser. Ils réservent désormais leur place en permanence et apparaissent par `visibility`/`opacity`.
-- **Cause D — interruption traitée comme une annulation.** Un `pointercancel` ramenait toujours la carte en arrière, même lorsque le geste avait dépassé le seuil. Il est maintenant traité comme une fin de geste normale : la décision suit les mêmes règles que le relâchement.
+## 2. Règles de rendu (à ne jamais enfreindre)
 
-**Dix tests** : (1) inventaire des propriétés animées — aucune propriété coûteuse ne subsiste, les neuf animations de l'application n'utilisent plus que `transform` et `opacity` ; (2) `touch-action`, protections iOS sur appui long, interruption au-delà du seuil ; (3) absence de modification de `display` pendant l'interaction ; (4) coût du rendu — 0 écriture de `transform` sur 120 évènements avant l'image suivante, aucune lecture de géométrie dans le chemin du geste ; (5) appui long immobile puis maintenu sur le côté, avec bruit de capteur simulé ; (6) multi-touch et pointeurs parasites ; (7) seuils, annulation et vitesse ; (8) endurance sur 30 gestes cadencés, sans fuite d'état ni de mémoire ; (9) accessibilité — boutons, mouvements réduits, navigation manuelle ; (10) non-régression complète.
+### 2.1 Propriétés animables sans coût
 
-**Note de méthode** : ces tests valident la structure et la logique. Ils ne peuvent pas mesurer la fluidité réelle sur un iPhone, qui dépend du moteur de rendu de Safari. Le retour d'usage reste nécessaire.
+| Étape | Propriétés concernées | Coût | Verdict |
+|---|---|---|---|
+| **Composition** | `transform`, `opacity` | GPU, quasi gratuit | ✅ à utiliser |
+| **Peinture** | `box-shadow`, `filter`, `background`, `border-radius`, `color` | Repeinture à chaque image | ⚠️ à éviter en animation |
+| **Mise en page** | `width`, `height`, `top`, `left`, `margin`, `padding`, `display` | Recalcul de toute la page | ❌ jamais en animation |
 
-## v13 — Correction du tremblement au glissement
-Le glissement introduit en v12 tremblait, surtout lors d'un appui maintenu sur le côté. Quatre causes distinctes ont été identifiées et corrigées.
+**Erreur commise en v13 :** le halo de la carte animait `box-shadow` sur 620 ms. Une ombre floue de 16 px repeinte à chaque image, déclenchée juste avant le glissement — le téléphone était déjà saturé quand le doigt bougeait.
+**Correction :** bordure sur un calque `::after` animée en `opacity`.
 
-- **Cause 1 — deux propriétaires du `transform`.** Un appui sur une carte déjà retournée déclenchait l'animation CSS `tap-pulse`, qui écrit elle aussi dans `transform` et entrait en conflit avec la position suivie par le doigt : la carte sautait. Le `transform` de la carte a désormais un propriétaire unique, le geste. La règle CSS exclut explicitement la carte (`.tap-pulse:not(.flashcard)`) et les classes de transition neutralisent toute animation concurrente.
-- **Cause 2 — aucun filtrage du pointeur.** Un second doigt ou le contact d'une paume émettait des `pointermove` que l'application traitait comme le doigt principal, projetant la carte au hasard. Le pointeur est maintenant mémorisé au premier contact ; tous les autres sont ignorés, y compris leurs relâchements.
-- **Cause 3 — une écriture par évènement au lieu d'une par image.** Les évènements de pointeur arrivent plus vite que le rafraîchissement de l'écran. Les mises à jour sont désormais groupées dans `requestAnimationFrame` (une seule écriture par image, vérifiée par test : 0 écriture immédiate sur 120 évènements) et utilisent `translate3d` pour forcer la composition GPU. Techniques confirmées par les implémentations de référence consultées (issue #207 de react-multi-carousel sur le jitter au drag, et les recommandations sur `translate3d`).
-- **Cause 4 — double validation possible.** Pendant les 260 ms d'envol de la carte, un second geste pouvait valider une deuxième fois et faire sauter une carte. Un verrou bloque tout nouveau geste jusqu'au rendu de la carte suivante.
-- **Durcissement iOS** : `-webkit-touch-callout:none`, `-webkit-user-drag:none` et suppression du surlignage tactile, pour éviter menu contextuel et sélection de texte sur appui long.
+**Erreur évitée en v18 :** les références fournies utilisaient un flou de calque (`Layer blur 200`). Un flou est parmi les propriétés les plus coûteuses sur iPhone. Le halo coloré des fiches est obtenu par **deux dégradés radiaux superposés**, pour le même rendu diffus à coût nul.
 
-**Bug corrigé au passage** : le paquet restait figé à 362 cartes. Une session enregistrée avant l'ajout des mises en situation était restaurée telle quelle, si bien que les 80 nouvelles questions n'étaient jamais proposées. La session n'est désormais reprise que si elle couvre encore exactement le vivier courant ; sinon le paquet est reconstruit, la progression étant conservée.
+### 2.2 Configuration des gestes tactiles
 
-**Dix campagnes de validation** : (1) propriétaire unique du `transform` ; (2) appui long immobile avec bruit de capteur simulé — 180 évènements, la carte ne bouge pas ; (3) appui maintenu sur le côté et vérification du groupage par image ; (4) multi-touch, second doigt et second appui ; (5) linéarité du suivi, rotation et opacité ; (6) seuils de validation et annulation ; (7) vitesse, hésitation, défilement vertical, `touch-action` ; (8) reconstruction du paquet obsolète ; (9) endurance sur 40 gestes cadencés et double validation ; (10) non-régression complète — banc de solutions, boutons, QCM, 30 sujets d'examen, chronomètre, seuil, écran Progrès, export/import et reprise de session.
+| Réglage | Valeur | Pourquoi |
+|---|---|---|
+| `touch-action` | `pan-y` sur la carte | Laisse le défilement vertical au système, l'horizontal au geste |
+| `will-change` | `transform` | Réserve un calque GPU dédié |
+| `-webkit-touch-callout` | `none` | Pas de menu contextuel sur appui long |
+| `-webkit-user-drag` | `none` | Pas de glisser-déposer natif |
+| `user-select` | `none` | Pas de sélection de texte pendant le geste |
+| Affichage conditionnel | `visibility` + `opacity`, jamais `display` | `display` change la hauteur du document |
 
-## v12 — Glissement des fiches
-- **Validation par glissement** : sur une fiche retournée, glisser vers la droite marque « je savais », vers la gauche « à revoir ». Les deux boutons sont conservés — non par redondance, mais pour l'accessibilité (VoiceOver, motricité réduite) et la découvrabilité.
-- **Comportement physique** : la carte suit le doigt au pixel près, sans retard, et pivote légèrement (0,035° par pixel) comme un objet posé. Les mentions « Je savais » et « À revoir » apparaissent progressivement selon la distance parcourue, atteignant leur pleine opacité au seuil de validation.
-- **Double critère de validation, comme dans les applications d'Apple** : la distance (88 px) **ou** la vitesse du geste (0,45 px/ms au-delà de 24 px). Un mouvement bref mais franc valide donc aussi, sans devoir traverser tout l'écran.
-- **Retour élastique** : en deçà du seuil, la carte revient en place en 380 ms avec une courbe d'amortissement, sans à-coup.
-- **Verrouillage d'axe** : au-delà de 7 px, l'application détermine si le geste est horizontal ou vertical. Un geste vertical rend immédiatement la main au défilement de la page (`touch-action: pan-y`), pour ne jamais bloquer le scroll.
-- **Le geste ne peut pas être confondu avec un appui** : un glissement n'entraîne jamais le retournement de la carte, et le clic parasite émis en fin de geste est neutralisé.
-- **Deux bugs trouvés pendant les tests et corrigés** :
-  1. *Vitesse aberrante* — elle était mesurée entre deux points consécutifs, donc parfois sur 1 ms, ce qui produisait des valeurs absurdes et pouvait valider un geste lent par accident. Elle est désormais lissée sur une fenêtre de 100 ms, avec un intervalle minimum de 12 ms.
-  2. *Geste hésitant* — un doigt parti à droite puis revenu à gauche pouvait valider dans le mauvais sens. La validation par vitesse exige maintenant que la vitesse finale aille dans le sens du déplacement.
-  3. *État résiduel* — l'état du geste n'était pas réinitialisé au changement de carte ; un geste interrompu pouvait le laisser actif.
-- **Quatre campagnes de test** : (1) logique du geste — seuils, rotation, opacité, verrouillage d'axe, calcul de vitesse ; (2) effets réels — validation gauche/droite, annulation, persistance, mise à jour de la barre de maîtrise ; (3) cas limites — geste rapide et court, lent et court, hésitant, interrompu, appui simple, clic parasite, boutons ; (4) non-régression complète — bancs de solutions, QCM, génération d'examens, chronomètre, seuil de réussite, écran Progrès, export/import et reprise de session après fermeture de l'application.
+### 2.3 Discipline JavaScript pendant un geste
 
-## v11 — Suivi des examens dans l'écran Progrès
-- **Nouvelle section « Examens blancs »** dans l'onglet Progrès, conçue autour de la question utile pour l'utilisateur : « est-ce que je progresse vers le seuil de 32/40 ? », plutôt qu'une simple liste de chiffres.
-- **Trois indicateurs clés** : dernier score (avec l'écart chiffré par rapport à la tentative précédente, en vert si progression, en rouge si recul), meilleur score, et nombre d'examens réussis sur le total.
-- **Graphique d'évolution** : barres des 10 dernières tentatives, colorées selon le résultat (vert ≥ 32, orange 26-31, rouge < 26), avec la **ligne de seuil à 32/40 tracée en pointillés verts** — le seuil est ainsi visible en permanence comme repère, sans avoir à faire le calcul.
-- **Conseil contextuel** : indique le nombre exact de bonnes réponses manquantes pour atteindre le seuil, ou invite à entretenir son niveau si le seuil est déjà atteint.
-- **Historique détaillé** : 8 dernières tentatives, du plus récent au plus ancien, avec date, heure, niveau (CR/CSP), durée réelle, mention « temps écoulé » le cas échéant, et badge réussi/échoué.
-- **État vide soigné** : quand aucun examen n'a été passé, un bloc explicatif propose directement de lancer un examen blanc plutôt que d'afficher un graphique vide.
-- **Tests ajoutés** : état vide, calcul des indicateurs, tendance positive et négative, proportionnalité des barres, tri chronologique, plafonnement à 10 barres et 8 lignes avec mention des tentatives masquées, intégration bout-en-bout (examen réellement passé apparaissant dans Progrès), et retour à l'état vide après réinitialisation.
+1. **Un seul propriétaire du `transform`.** Deux écritures concurrentes font trembler l'élément
+2. **Filtrer le pointeur.** Mémoriser le `pointerId` du premier contact, ignorer tous les autres
+3. **Une écriture par image.** Grouper dans `requestAnimationFrame`
+4. **`translate3d` plutôt que `translateX`.** Force la composition matérielle
+5. **Aucune lecture de géométrie** (`offsetWidth`, `getBoundingClientRect`) dans le chemin du geste
+6. **Verrouiller pendant l'animation de sortie**, sinon double validation
+7. **Vitesse lissée sur une fenêtre** (~100 ms, minimum 12 ms)
+8. **Un calque d'ombre suit exactement l'élément qu'il ombre** : même translation, même rotation
 
-## v10 — Mises en situation enrichies et méthode D.V.R.E (version actuelle)
-- **Base portée à 442 questions** : 362 questions de connaissance + **80 mises en situation** (contre 46 en v9).
-- **34 nouvelles mises en situation** couvrant des points de droit jusque-là absents : garde à vue et droit à l'avocat, référé prud'homal, droit au compte auprès de la Banque de France, violation de domicile par le bailleur, garantie légale de conformité, signalement PHAROS, instruction en famille et autorisation du rectorat, fraude à la carte Vitale, harcèlement moral au travail, harcèlement scolaire (3018), achat de vote, discrimination au logement et au commerce, maisons France Services.
-- **Sources** : questions rédigées en propre, à partir des points de droit identifiés dans un document fourni par l'utilisateur et sur parcours-civique.fr. Ces deux sources sont privées et non affiliées au gouvernement (le site l'indique lui-même) : leurs questions ne sont pas officielles et n'ont pas été recopiées.
-- **Application de la méthode D.V.R.E** (Dialogue, Valeurs, Recours, Éliminer les extrêmes) :
-  - 9 questions existantes reformulées : elles posaient une question de connaissance déguisée au lieu d'appeler une action. Elles demandent désormais « que faites-vous ? » et la bonne réponse est un comportement.
-  - Priorité au dialogue avant la sanction lorsqu'il n'y a ni urgence ni danger (voisinage, école, employeur).
-  - Chaque situation propose des distracteurs de type « ne rien faire », « contourner la procédure » ou « se faire justice soi-même ».
-  - La bonne réponse identifie l'institution compétente (mairie, préfecture, Défenseur des droits, inspection du travail, CPAM, France Travail, PHAROS, secours 15/17/18/112).
-- **Contrôles automatisés ajoutés** : aucune bonne réponse incivique, 3 distracteurs distincts par question, explication obligatoire, scénario présent dans l'énoncé. 0 erreur structurelle sur 80 situations.
-- **Revalidation** : 100 examens simulés (composition 28/12 respectée 100 fois sur 100, 0 doublon, 0 question hors niveau, 5 thématiques par sujet, 442 questions mobilisées), chronomètre et seuil de réussite revérifiés, non-régression sur les bancs de solutions, graphiques et reprise de session.
+---
 
-## v9 — Mode Examen blanc (version actuelle)
-- **Nouvel onglet « Examen »** reproduisant les conditions officielles : 40 questions QCM (4 réponses, 1 correcte), 45 minutes, seuil de réussite à 32/40 (80 %), au niveau CR ou CSP au choix.
-- **Composition conforme** : 28 questions de connaissance + 12 mises en situation, réparties sur les cinq thématiques officielles, tirées au sort à chaque tentative.
-- **46 mises en situation créées** (base portée à 408 questions). Le ministère ne publie pas les mises en situation officielles : elles ont été rédigées d'après le format décrit et les principes de la formation civique.
-- **Chronomètre à horloge absolue** : le temps est calculé depuis l'horodatage de départ, donc il continue de courir si l'utilisateur quitte l'application, verrouille son téléphone ou change d'onglet. À la reprise, le temps réellement écoulé est recalculé ; si les 45 minutes sont dépassées, l'examen est clôturé automatiquement. Alerte visuelle à 10 min puis 5 min.
-- **Déroulé fidèle** : aucune correction pendant l'épreuve, navigation libre entre les 40 questions via une grille, reprise possible d'un examen en cours après fermeture de l'app.
-- **Écran de résultats** : score et mention réussi/non atteint, durée réelle, questions sans réponse, performance par type (connaissance / situation), analyse par thématique triée de la plus faible à la plus solide avec conseil de révision, et corrigé complet des erreurs avec explication.
-- **Validation : 100 examens simulés avant livraison** — taille (40), composition (28/12 sur 100/100), aucun doublon, aucune question hors niveau, options valides (4 choix, 1 seule bonne réponse, sans doublon), 5 thématiques couvertes dans chaque sujet, 406 questions différentes mobilisées sur 408. Chronomètre vérifié (45 min au départ, 15 min restantes après 30 min hors application, clôture automatique à expiration) et seuil de réussite testé aux bornes exactes (31/40 refusé, 32/40 accepté).
+## 3. Réglages de débogage
 
-## v8 — Séparation progression / position et reprise de session (version actuelle)
-- **Problème identifié** : la barre en haut de l'écran Fiches affichait la *position dans le paquet* (« 4/362 »), mais ressemblait exactement à une barre de progression. Elle repartait à zéro à chaque ouverture — ce qui donnait l'impression, à tort, que la progression était perdue.
-- **Correction, alignée sur les principes d'interface d'Apple** (un indicateur de progression doit refléter un état durable ; un état temporaire ne doit pas lui ressembler) :
-  - **Barre de maîtrise** (verte, persistée) : « X / Y maîtrisées dans cette sélection ». C'est la seule barre de l'écran.
-  - **Position dans le paquet** : ligne discrète en texte, sans barre (« Carte 13 sur 362 »), avec un bouton « Recommencer ».
-- **Reprise de session (restauration d'état, logique d'Apple Books)** : l'app rouvre exactement sur la carte où l'utilisateur s'était arrêté, avec le même ordre de paquet et les mêmes filtres (niveau CR/CSP et thème) restaurés automatiquement.
-- **Tests ajoutés** : simulation de trois lancements successifs de l'app avec stockage persistant partagé, vérifiant la reprise de la carte, de l'index, du compte de maîtrise, du filtre thématique, et le comportement du bouton « Recommencer ».
+### 3.1 Constantes du geste — `[J11]`
 
-## v7 — Banc de solutions élargi (version actuelle)
-- Chaque question à réponses variables propose désormais **jusqu'à 10 réponses alternatives** (323 au total, contre 210 en v6), tirées de l'ensemble réel des réponses acceptables.
-- Les bancs plus courts correspondent à des **ensembles finis**, où il n'existe pas 10 réponses valables : DOM insulaires (3), pays fondateurs de l'UE (5), façades maritimes (5), territoires de l'océan Indien (5), conditions du permis (6), symboles de la République (7-9), pays frontaliers (7-9).
-- **Trois passes de vérification** :
-  1. Cohérence interne : pas de doublon dans un banc, pas de répétition de la réponse principale, aucun banc vide.
-  2. Contrôle anti-contradiction : aucune réponse du banc ne figure parmi les distracteurs (mauvaises réponses) de la même question — sinon l'app se contredirait entre le QCM et la fiche.
-  3. Rendu et graphiques : les 36 bancs testés un par un en rendu réel (jsdom), affichage/masquage correct, QCM, anneau et barres.
-- **Correction de robustesse détectée en passe 3** : les animations de l'anneau et des barres dépendaient de `requestAnimationFrame`, qui ne se déclenche pas quand l'onglet est en arrière-plan (les graphiques pouvaient rester vides). Remplacées par une transition CSS directe et une animation `scaleX`, sans dépendance à rAF.
+```js
+const SWIPE_COMMIT_PX = 88;            // distance de validation, en pixels
+const SWIPE_COMMIT_VELOCITY = 0.45;    // vitesse de validation, en px/ms
+const SWIPE_AXIS_LOCK_PX = 7;          // seuil de décision horizontal/vertical
+const SWIPE_HORIZONTAL_RATIO = 1.4;    // exigence d'intention horizontale
+const SWIPE_VELOCITY_WINDOW_MS = 100;  // fenêtre de lissage de la vitesse
+const SWIPE_VELOCITY_MIN_DT = 12;      // intervalle minimum pour mesurer une vitesse
+```
 
-## v6 — Banc de solutions et graphiques interactifs (version actuelle)
-- **Analyse des 362 questions en deux passes** : détection par motif syntaxique (49 candidats), puis tri manuel pour distinguer les questions à ensemble réellement ouvert (36) de celles à réponse unique malgré la formulation "lequel de ces" (13, ex. numéros d'urgence, "quel fleuve traverse Paris").
-- **Banc de solutions** : les 36 questions à réponses multiples affichent désormais un bloc "Autres réponses acceptées" (210 réponses alternatives au total), visible sur la fiche et après réponse en QCM. Un badge "Réponses multiples" signale ces questions dès le recto.
-- **Graphiques interactifs (écran Progrès)** :
-  - Anneau de progression animé (SVG, `stroke-dashoffset`) avec pourcentage global et légende CR/CSP.
-  - Barres horizontales par thématique, animées au chargement, dépliables au toucher pour afficher le détail (maîtrisées / restantes).
-- **Vérification** : validation syntaxique via `node --check` et tests fonctionnels automatisés via jsdom (rendu, navigation, banc affiché/masqué selon la question, QCM, graphiques, export).
+| Symptôme | Réglage à modifier |
+|---|---|
+| Le geste valide trop facilement | Augmenter `SWIPE_COMMIT_PX` (→ 110) et `SWIPE_COMMIT_VELOCITY` (→ 0.6) |
+| Il faut trop glisser pour valider | Diminuer `SWIPE_COMMIT_PX` (→ 70) |
+| La carte part alors qu'on voulait faire défiler | Augmenter `SWIPE_HORIZONTAL_RATIO` (→ 1.8) |
+| Difficile de déclencher le glissement | Diminuer `SWIPE_HORIZONTAL_RATIO` (→ 1.2) |
+| Un geste lent valide par accident | Augmenter `SWIPE_VELOCITY_MIN_DT` (→ 20) |
+| Rotation trop marquée | Dans `applyCardTransform`, baisser le facteur `0.035` (→ 0.02) |
+| Ombre trop ou pas assez marquée | Dans `applyCardTransform`, ajuster `0.42 + lift * 0.30` |
 
-## v5 — Enrichissement complet des 362 questions (version actuelle)
-- Chaque question a désormais une courte explication contextuelle (date, chiffre clé, nuance juridique, mnémotechnique) — en moyenne 75 caractères, pour ne pas surcharger la flashcard.
-- Les explications ajoutent une information non redondante avec la réponse (ex. "Loi de 1905" plutôt que répéter "séparation Églises-État").
-- Les ~10 questions à réponses multiples restent volontairement plus longues (elles listent les autres réponses acceptées).
-- Fichier unique autonome (`index.html`), aucune dépendance externe.
-- Pour toute mise à jour future : je regénère le fichier complet, et il faut le re-uploader manuellement sur GitHub (remplacer `index.html` dans le repo) — je n'ai pas d'accès direct en écriture au dépôt GitHub de l'utilisateur.
-- Prochaines pistes possibles (non demandées à ce jour) : enrichir les explications des ~340 questions restantes qui n'ont pas encore de note contextuelle ; ajouter un mode "questions à revoir en priorité" basé sur les erreurs en QCM.
+### 3.2 Durées d'animation
+
+| Constante | Emplacement | Valeur | Rôle |
+|---|---|---|---|
+| Retour élastique | CSS `.flashcard.snapping` `[C8]` | 380 ms | Retour quand le seuil n'est pas atteint |
+| Envol de la carte | CSS `.flashcard.flying` `[C8]` | 300 ms | Sortie d'écran après validation |
+| Délai avant carte suivante | JS `setTimeout(…, 260)` `[J11]` | 260 ms | Doit rester **inférieur** à l'envol |
+| Retour de l'ombre | CSS `.card-shadow` `[C8]` | 320 ms | Repos du calque de profondeur |
+| Halo thématique | CSS `glowFade` `[C19]` | 560 ms | Confirmation au retournement |
+| Ouverture de la fenêtre | CSS `.modal` `[C8]` | 320 ms | Montée depuis le bas |
+
+⚠️ Le délai de 260 ms et l'envol de 300 ms sont liés. Si l'un change, vérifier que le délai reste inférieur.
+
+### 3.3 Mode diagnostic à coller dans la console Safari
+
+Connecter l'iPhone au Mac, puis **Safari → Développement → iPhone → la page**.
+
+```js
+// A. Images par seconde pendant un geste — en dessous de 50, il y a un problème
+(function(){ let n=0, t=performance.now();
+  (function loop(){ n++; const d=performance.now()-t;
+    if(d>=1000){ console.log('FPS:', Math.round(n*1000/d)); n=0; t=performance.now(); }
+    requestAnimationFrame(loop); })();
+})();
+
+// B. Détecter une propriété coûteuse animée
+[...document.styleSheets].flatMap(s=>[...s.cssRules]).forEach(function walk(r){
+  if(r.cssRules) [...r.cssRules].forEach(walk);
+  if(r.constructor.name==='CSSKeyframesRule'){
+    const p=new Set(); for(const k of r.cssRules) for(let i=0;i<k.style.length;i++) p.add(k.style[i]);
+    const cher=[...p].filter(x=>/box-shadow|filter|width|height|top|left|margin|padding/.test(x));
+    console.log(r.name, [...p].join(','), cher.length?'⚠️ COÛTEUX':'✓');
+  }});
+
+// C. Suivre l'état du geste en direct
+setInterval(()=>console.log('dx',Math.round(swipe.dx),'| actif',swipe.active,
+  '| axe',swipe.horizontal?'H':'-','| verrou',swipe.committing), 500);
+
+// D. Compter les écritures de transform (doit rester à 1 par image)
+(function(){ const el=document.getElementById('flashcard'); let n=0, v='';
+  Object.defineProperty(el.style,'transform',{configurable:true,get:()=>v,set(x){n++;v=x;}});
+  setInterval(()=>{ if(n) console.log('écritures/s:',n); n=0; },1000);
+})();
+
+// E. Inspecter l'état des sacs de tirage
+console.log(Object.entries(progress.bags||{}).map(([k,v])=>
+  k==='_rot' ? `rotation:${v}` : `${k}: ${v.i}/${v.order.length}`).join('\n'));
+
+// F. Mesurer la couverture des explications sur la base
+(function(){ let ok=0, total=0;
+  for(const q of QUESTIONS) for(const d of q.d){ total++; if(whyWrong(q,d)) ok++; }
+  console.log(`justifications : ${ok}/${total} = ${(ok/total*100).toFixed(1)} %`);
+})();
+```
+
+### 3.4 Réglages visuels de Safari
+
+- **Développement → Afficher les couches composées** : la carte doit avoir son propre calque pendant le geste
+- **Timeline → Rendering** : chercher les barres vertes (peinture). Pendant un glissement, il ne devrait presque rien y avoir
+
+---
+
+## 4. Cas de test
+
+Les tests s'exécutent avec Node et jsdom (`npm install jsdom`). Chaque fichier est autonome et retourne un code d'erreur si un cas échoue.
+
+### 4.1 Tests de rendu (le point aveugle)
+
+| # | Cas | Vérification |
+|---|---|---|
+| R1 | Inventaire des animations | Aucune règle `@keyframes` n'anime une propriété coûteuse |
+| R2 | Halo composité | `glowFade` n'anime que `opacity`, sur un calque `::after` dédié |
+| R3 | Lavis coloré | Obtenu par dégradés radiaux, sans `filter: blur` |
+| R4 | `touch-action` | Vaut `pan-y` sur `.flashcard` |
+| R5 | Protections iOS | `-webkit-touch-callout` et `-webkit-user-drag` présents |
+| R6 | Calque GPU | `will-change: transform` sur la carte et sur le calque d'ombre |
+| R7 | Pas de `display` animé | Les contrôles basculent par classe |
+| R8 | Place réservée | `.deck-controls` et `.swipe-tip` en `visibility:hidden; opacity:0` |
+| R9 | Écritures groupées | 120 évènements → **0** écriture de `transform` avant l'image suivante |
+| R10 | Pas de lecture de géométrie | Aucun `offsetWidth` dans le chemin du geste |
+| R11 | `translate3d` | Le transform appliqué contient `translate3d` |
+| R12 | Calque d'ombre | Suit exactement la fiche : même translation, même rotation, échelle ≤ 0,94 |
+
+### 4.2 Tests du geste
+
+| # | Cas | Attendu |
+|---|---|---|
+| G1 | Appui long immobile, 180 évènements avec bruit ±2 px | La carte ne bouge pas, aucun enregistrement |
+| G2 | Appui maintenu 3 s à 60 px avec bruit ±1,5 px | Amplitude suivie ≤ 3,5 px |
+| G3 | Glissement horizontal | La carte suit au pixel près, écart maximal 0 |
+| G4 | Rotation | Strictement proportionnelle, incréments constants |
+| G5 | Opacité des indications | Progression en courbe, plafonnée à 0,92 |
+| G6 | Geste vertical | La carte ne bouge pas, `preventDefault` non appelé |
+| G7 | Micro-mouvement (3 px) | Aucun glissement déclenché |
+| G8 | Carte non retournée | Geste inactif |
+| G9 | Multi-touch | Un second doigt ne déplace pas la carte et ne clôt pas le geste |
+| G10 | Frontière d'axe | Testée de part et d'autre du ratio 1,4, dans les deux directions |
+| G11 | Geste du pouce en arc | Le défilement reste possible |
+| G12 | Interruption (`pointercancel`) | Traitée comme une fin de geste, pas un retour brutal |
+
+### 4.3 Tests de validation
+
+| # | Cas | Attendu |
+|---|---|---|
+| V1 | Glissement droite ≥ 88 px | « Je savais », carte suivante |
+| V2 | Glissement gauche ≥ 88 px | « À revoir », carte suivante |
+| V3 | Glissement 70 px | Annulé, rien enregistré, retour en place |
+| V4 | Geste court et rapide (50 px / 40 ms) | Validé par la vitesse |
+| V5 | Geste court et lent (50 px / 800 ms) | Non validé |
+| V6 | Geste hésitant | Non validé — la vitesse doit aller dans le sens du déplacement |
+| V7 | Interruption au-delà du seuil | Traitée comme une validation |
+| V8 | Double geste pendant l'envol | Une seule carte consommée |
+| V9 | Endurance, 30 gestes cadencés | 30 enregistrements, aucune fuite d'état |
+| V10 | Boutons « À revoir » / « Je savais » | Fonctionnels |
+
+### 4.4 Tests du contenu
+
+| # | Cas | Attendu |
+|---|---|---|
+| C1 | Effectifs | 589 questions, 479 connaissance dont 60 pièges, 110 situations |
+| C2 | Structure | 3 distracteurs distincts, `exp` et `diff` présents, aucun doublon d'énoncé |
+| C3 | Biais de longueur | La bonne réponse est la plus longue dans ≤ 32 % des cas |
+| C4 | Stratégie « plus longue » | Rapporte moins de 33 % sur 40 examens simulés |
+| C5 | Indices syntaxiques | ≤ 5 % de questions avec parenthèse, chiffre, nuance ou absolus exclusifs |
+| C6 | Banc de solutions | 36 questions, aucune entrée présente dans les distracteurs |
+| C7 | Questions pièges | 60, réparties 12 par thématique, énoncé contenant « FAUSSE » |
+| C8 | Difficulté | Répartition équilibrée, au moins 20 questions de chaque niveau par thématique |
+| C9 | Justifications | `de[]` de même longueur que `d[]`, aucune entrée vide |
+| C10 | Couverture des explications | ≥ 55 % des réponses fausses reçoivent un texte |
+
+### 4.5 Tests de l'examen
+
+| # | Cas | Attendu |
+|---|---|---|
+| E1 | Composition | 40 questions, 28 connaissance + 12 situations, sur 100 sujets |
+| E2 | Doublons | Aucun doublon interne |
+| E3 | Niveau | Aucune question hors niveau |
+| E4 | Options | 4 options, 1 seule correcte, sans doublon |
+| E5 | Thématiques | Les 5 présentes dans chaque sujet |
+| E6 | Mélange, recouvrement | ≤ 1,5 question commune entre examens consécutifs au même niveau |
+| E7 | Mélange, couverture | 100 % du vivier tiré sur 100 examens |
+| E8 | Mélange, uniformité | Écart max-min ≤ 1 **à l'intérieur de chaque sac** |
+| E9 | Délai de retour | ≥ 8 examens en moyenne, moins de 5 % de retours en moins de 3 |
+| E10 | Chronomètre | 15 min restantes après 30 min hors application |
+| E11 | Expiration | Clôture automatique au-delà de 45 min |
+| E12 | Seuil | 31/40 refusé, 32/40 accepté |
+| E13 | Copie | Les 40 questions et réponses conservées |
+| E14 | Pièges | Au moins un par examen dans la grande majorité des cas |
+
+### 4.6 Tests des explications
+
+| # | Cas | Attendu |
+|---|---|---|
+| X1 | Bonne réponse | `whyWrong` ne retourne rien |
+| X2 | Absence de réponse | `whyWrong` ne retourne rien, la fenêtre le signale |
+| X3 | Questions pièges | Les 60 traitées par la règle systématique |
+| X4 | Champ `de` | Prioritaire sur toutes les règles automatiques |
+| X5 | Fenêtre ouverte | 4 propositions, bonne marquée, choisie marquée |
+| X6 | Fond | Défilement bloqué pendant l'ouverture, rétabli à la fermeture |
+| X7 | Question juste | Aucune option marquée comme erreur |
+| X8 | QCM | Justification affichée après une mauvaise réponse |
+
+### 4.7 Tests fonctionnels et d'accessibilité
+
+| # | Cas | Attendu |
+|---|---|---|
+| F1 | QCM | 4 options, 1 correcte, correction affichée |
+| F2 | Filtres de difficulté | Fiches et QCM, homogènes, comptes cohérents |
+| F3 | Écran Progrès | Anneau, 5 barres, ligne de seuil, 3 indicateurs |
+| F4 | Export / import | Fichier et code texte fonctionnels |
+| F5 | Reprise de session | Même carte, même paquet, mêmes filtres après fermeture |
+| F6 | Sacs persistés | Présents dans `localStorage` après fermeture |
+| F7 | Paquet obsolète | Reconstruit si le vivier a changé, progression conservée |
+| A1 | Boutons visibles | Après retournement, les contrôles sont affichés |
+| A2 | Mouvements réduits | `prefers-reduced-motion: reduce` neutralise les animations |
+| A3 | Navigation manuelle | Précédente / Suivante / Mélanger fonctionnels |
+
+---
+
+## 5. Écrire un test
+
+```js
+const {makeApp,wait}=require('./lib');
+(async()=>{
+  const w=makeApp(); const ev=c=>w.eval(c); const errs=[]; let n=0;
+  const T=(c,l)=>{n++;console.log(`  ${c?'✓':'✗'} ${n}. ${l}`); if(!c)errs.push(n+'. '+l);};
+  await wait(900);                       // laisser l'application démarrer
+
+  T(ev('QUESTIONS.length')===589, 'base intacte');
+
+  console.log(errs.length?'❌ '+errs.join('\n'):'✅ VALIDÉ');
+  process.exit(errs.length?1:0);
+})();
+```
+
+### Pièges à connaître
+
+- Les `const` du script ne sont pas exposés sur `window` : passer par `w.eval('MaConstante')`
+- jsdom n'implémente pas `PointerEvent` : utiliser l'assistant `PE()` de `lib.js`
+- L'envol d'une carte dure 260 ms : attendre au moins 300 ms entre deux gestes simulés
+- jsdom retire les propriétés `-webkit-` inconnues du CSSOM : les vérifier dans le texte source
+- Lire l'état **pendant** le geste, avant `pointerup` : le relâchement réinitialise tout
+- Après un `renderProgress()` ou un `renderExam()`, les éléments du DOM sont recréés : re-interroger le document avant de cliquer
+- **Mesurer le mélange à niveau constant.** En alternant CR et CSP, seules les questions « CR + CSP » peuvent être communes
+- **Mesurer l'uniformité par sac**, pas globalement : une question d'un petit vivier sort légitimement plus souvent
+
+---
+
+## 6. Procédure avant chaque mise en ligne
+
+1. **Syntaxe** — `node --check` sur le script extrait
+2. **Tests de rendu** — section 4.1, en priorité R1
+3. **Tests du geste et de validation** — sections 4.2 et 4.3
+4. **Tests du contenu** — section 4.4, obligatoire si des questions ont été ajoutées
+5. **Tests de l'examen** — section 4.5
+6. **Tests fonctionnels** — section 4.7
+7. **Validation sur iPhone** — la seule qui juge la fluidité réelle. Vérifier : glissement lent, glissement rapide, appui long immobile, appui maintenu sur le côté, défilement à une main, geste interrompu
+8. **Mise en ligne** — remplacer `index.html` dans le dépôt, puis « Commit changes »
+
+---
+
+## 7. Historique des causes de saccades identifiées
+
+| Version | Cause | Correction |
+|---|---|---|
+| v13 | Deux propriétaires du `transform` | Propriétaire unique, règle CSS excluant la carte |
+| v13 | Aucun filtrage du pointeur | Mémorisation du `pointerId` |
+| v13 | Une écriture de `transform` par évènement | Groupage dans `requestAnimationFrame` + `translate3d` |
+| v13 | Double validation pendant l'envol | Verrou jusqu'au rendu suivant |
+| v14 | Animation de `box-shadow` | Calque `::after` animé en `opacity` |
+| v14 | `touch-action: pan-y` sans gestion du `pointercancel` | Interruption traitée comme une fin de geste |
+| v14 | `display:none` → `flex` pendant l'interaction | `visibility` + `opacity`, place réservée |
+| v15 | `touch-action: none` bloquant le défilement | Retour à `pan-y` avec verrouillage d'axe à 1,4 |
+| v18 | Fausses cartes empilées, rendu figé | Calque d'ombre unique, dynamique |
+| v19 | Calque d'ombre suivant partiellement la fiche | Suivi exact, même rotation, calque réduit |
+
+---
+
+## 8. Si les saccades reviennent
+
+Pistes à explorer dans l'ordre :
+
+1. **Ombre portée statique de la carte** (`box-shadow`) — même statique, elle doit être composée à chaque déplacement. Tester en la retirant temporairement
+2. **`backdrop-filter`** — si un flou d'arrière-plan est ajouté un jour, c'est un coût majeur sur iPhone
+3. **Taille du calque** — une carte occupant presque tout l'écran coûte plus cher à composer
+4. **Nombre de nœuds dans la carte** — le banc de solutions peut afficher 10 éléments ; vérifier si les saccades n'apparaissent que sur ces questions-là
+5. **La fenêtre de détail** — elle contient jusqu'à 4 propositions plus l'explication ; vérifier son ouverture sur les questions les plus longues
+6. **Mémoire** — l'application charge 589 questions et un dictionnaire de 209 notions. Vérifier l'onglet Mémoire de l'inspecteur Safari sur un appareil ancien
